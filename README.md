@@ -1,2 +1,2 @@
-# hannigan
-repo for my super cool website, hannigan.xyz
+# hannigan.xyz
+Trying to learn some web dev stuff through an awesome website!
