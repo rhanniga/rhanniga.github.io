@@ -548,6 +548,13 @@ input, select, textarea {
 			line-height: 1em;
 		}
 
+		#header h2 {
+			font-size: 1.35em;
+			font-weight: 900;
+			letter-spacing: -0.035em;
+			line-height: 1em;
+		}
+
 		#header p {
 			font-size: 1.25em;
 			margin: 0.75em 0 0.25em 0;
