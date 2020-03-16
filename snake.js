@@ -107,6 +107,10 @@ function loadImages() {
     mike_face.src = 'faces/mike.png';
     face_array[5] = mike_face;
 
+    esben_face = new Image();
+    esben_face.src = 'faces/esben.png';
+    face_array[6] = esben_face;
+
 }
 
 function createSnake() {
