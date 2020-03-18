@@ -37,14 +37,21 @@ const LEFT_KEY = 37;
 const RIGHT_KEY = 39;
 const UP_KEY = 38;
 const DOWN_KEY = 40;
+const ALT_LEFT_KEY = 65;
+const ALT_RIGHT_KEY = 68;
+const ALT_DOWN_KEY = 83;
+const ALT_UP_KEY = 87;
+
 
 var x = new Array(ALL_DOTS);
 var y = new Array(ALL_DOTS);   
 
 function init() {
     
-    canvas = document.getElementById('myCanvas');
+    canvas = document.getElementById('gameCanvas');
     ctx = canvas.getContext('2d'); 
+
+    createScoreboard();
 
     ctx.fillStyle = 'white';
     ctx.fillRect(START_BUTTON_X, START_BUTTON_Y, BUTTON_WIDTH, BUTTON_HEIGHT);
@@ -62,7 +69,6 @@ function init() {
 function resetGame() {
 
     inGame = true;
-    score = 0;
 
     movingLeft = false;
     movingRight = true;
@@ -70,6 +76,7 @@ function resetGame() {
     movingDown = false;
 
     inGame = true;    
+    createScoreboard();
     createSnake();
     locateFood();
     setTimeout("gameCycle()", DELAY);
@@ -123,6 +130,39 @@ function createSnake() {
     }
 }
 
+function createScoreboard() {
+
+    ctx.clearRect(900, 0, 300, 900);
+
+    ctx.fillStyle = 'white';
+    ctx.fillRect(900, 0, 300, 900);
+
+    ctx.fillStyle = 'black';
+    ctx.textAlign = 'left';
+    ctx.font = 'normal bold ' + String(TEXT_SIZE) +'px monospace';
+    ctx.fillText("SCORE: 0", 910, 30);
+
+}
+
+function updateScoreboard() {
+
+    ctx.clearRect(900, 0, 300, 900);
+
+    ctx.fillStyle = 'white';
+    ctx.fillRect(900, 0, 300, 900);
+
+    ctx.fillStyle = 'black';
+    ctx.textAlign = 'left';
+    ctx.font = 'normal bold ' + String(TEXT_SIZE) +'px monospace';
+    ctx.fillText("SCORE: " + String(dots - START_DOTS), 910, 25);
+
+    ctx.drawImage(food, 908, 40, DOT_SIZE/2, DOT_SIZE/2);
+    ctx.fillText("x " + String(dots - START_DOTS), 955, 60);
+
+
+
+}
+
 function doDrawing() {
     
     ctx.clearRect(0, 0, C_WIDTH, C_HEIGHT);
@@ -148,7 +188,7 @@ function gameOver() {
     ctx.textAlign = 'center'; 
     ctx.font = 'normal bold ' + String(TEXT_SIZE) +'px monospace';
     
-    ctx.fillText('Game over, score: ' + String(dots - START_DOTS) , C_WIDTH/2, C_HEIGHT/2 -100);
+    ctx.fillText('Game over, total score: ' + String(dots - START_DOTS) , C_WIDTH/2, C_HEIGHT/2 -100);
     ctx.fillText('Play again?', C_WIDTH/2, C_HEIGHT/2 -100 + TEXT_SIZE*1.5);
 
     ctx.fillStyle = 'white';
@@ -172,7 +212,6 @@ function clickStartButton(event) {
         event.x < START_BUTTON_X + BUTTON_WIDTH &&
         event.y > START_BUTTON_Y && 
         event.y < START_BUTTON_Y + BUTTON_HEIGHT) {
-            score = 0;
             loadImages();
             createSnake();
             locateFood();
@@ -203,6 +242,7 @@ function checkFood() {
     if ((x[0] == food_x) && (y[0] == food_y)) {
 
         dots++;
+        updateScoreboard();
         locateFood();
     }
 }
@@ -238,6 +278,7 @@ function locateFood() {
 
     var r = Math.floor(Math.random()*face_array.length);
     food = face_array[r];
+
     r = Math.floor(Math.random() * MAX_RAND);
     food_x = r * DOT_SIZE;
 
@@ -262,28 +303,28 @@ onkeydown = function(e) {
     
     var key = e.keyCode;
     
-    if ((key == LEFT_KEY) && (!movingRight)) {
+    if ((key == LEFT_KEY || key == ALT_LEFT_KEY) && (!movingRight)) {
         
         movingLeft = true;
         movingUp = false;
         movingDown = false;
     }
 
-    if ((key == RIGHT_KEY) && (!movingLeft)) {
+    if ((key == RIGHT_KEY || key == ALT_RIGHT_KEY) && (!movingLeft)) {
         
         movingRight = true;
         movingUp = false;
         movingDown = false;
     }
 
-    if ((key == UP_KEY) && (!movingDown)) {
+    if ((key == UP_KEY || key == ALT_UP_KEY) && (!movingDown)) {
         
         movingUp = true;
         movingRight = false;
         movingLeft = false;
     }
 
-    if ((key == DOWN_KEY) && (!movingUp)) {
+    if ((key == DOWN_KEY || key == ALT_DOWN_KEY) && (!movingUp)) {
         
         movingDown = true;
         movingRight = false;
