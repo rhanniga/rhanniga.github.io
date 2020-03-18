@@ -2,7 +2,7 @@ var canvas;
 var ctx;
 
 var dot;
-var face_array;
+var food_array;
 var food;
 
 var dots;
@@ -46,11 +46,14 @@ const ALT_UP_KEY = 87;
 var x = new Array(ALL_DOTS);
 var y = new Array(ALL_DOTS);   
 
+var score_map = new Map();
+
 function init() {
     
     canvas = document.getElementById('gameCanvas');
     ctx = canvas.getContext('2d'); 
 
+    loadImages();
     createScoreboard();
 
     ctx.fillStyle = 'white';
@@ -63,6 +66,11 @@ function init() {
     ctx.fillText('START', C_WIDTH/2, C_HEIGHT/2);
     canvas.addEventListener('click', clickStartButton);
 
+    window.addEventListener("keydown", function(e) {
+        if([32, 37, 38, 39, 40].indexOf(e.keyCode) > -1) {
+            e.preventDefault();
+        }
+    }, false);
 
 }    
 
@@ -88,35 +96,35 @@ function loadImages() {
     dot = new Image();
     dot.src = 'dot.png'; 
 
-    face_array = new Array();
+    food_array = new Array();
 
     ryan_face = new Image();
     ryan_face.src = 'faces/ryan.png';
-    face_array[0] = ryan_face;
+    food_array[0] = ryan_face;
 
     ray_face = new Image();
     ray_face.src = 'faces/ray.png';
-    face_array[1] = ray_face;
+    food_array[1] = ray_face;
 
     dev_face = new Image();
     dev_face.src = 'faces/dev.png';
-    face_array[2] = dev_face;
+    food_array[2] = dev_face;
 
     ben_face = new Image();
     ben_face.src = 'faces/ben.png';
-    face_array[3] = ben_face;
+    food_array[3] = ben_face;
 
     richard_face = new Image();
     richard_face.src = 'faces/richard.png';
-    face_array[4] = richard_face;
+    food_array[4] = richard_face;
 
     mike_face = new Image();
     mike_face.src = 'faces/mike.png';
-    face_array[5] = mike_face;
+    food_array[5] = mike_face;
 
     esben_face = new Image();
     esben_face.src = 'faces/esben.png';
-    face_array[6] = esben_face;
+    food_array[6] = esben_face;
 
 }
 
@@ -138,9 +146,18 @@ function createScoreboard() {
     ctx.fillRect(900, 0, 300, 900);
 
     ctx.fillStyle = 'black';
+    ctx.rect(905, 2, 153, 895);
+    ctx.rect(905, 2, 153, 35);
+    ctx.stroke();
+
     ctx.textAlign = 'left';
     ctx.font = 'normal bold ' + String(TEXT_SIZE) +'px monospace';
-    ctx.fillText("SCORE: 0", 910, 30);
+    ctx.fillText("SCORE: 0", 910, 25);
+
+    for(var i = 0; i < food_array.length; i++) {
+        score_map[food_array[i].src] = 0;
+    }
+
 
 }
 
@@ -152,14 +169,33 @@ function updateScoreboard() {
     ctx.fillRect(900, 0, 300, 900);
 
     ctx.fillStyle = 'black';
+    ctx.rect(905, 2, 153, 895);
+    ctx.rect(905, 2, 153, 35);
+    ctx.stroke();
+
     ctx.textAlign = 'left';
     ctx.font = 'normal bold ' + String(TEXT_SIZE) +'px monospace';
-    ctx.fillText("SCORE: " + String(dots - START_DOTS), 910, 25);
+    if(dots - START_DOTS < 10) {
+        ctx.fillText("SCORE: " + String(dots - START_DOTS), 910, 25);
+    }
+    else {
+        ctx.fillText("SCORE:" + String(dots - START_DOTS), 910, 25);
+    }
 
-    ctx.drawImage(food, 908, 40, DOT_SIZE/2, DOT_SIZE/2);
-    ctx.fillText("x " + String(dots - START_DOTS), 955, 60);
+    for(var i = 0; i < food_array.length; i++) {
 
+        if(score_map[food_array[i].src] != 0) {
+            ctx.drawImage(food_array[i], 
+                          908, 
+                          40 + i*(DOT_SIZE/2+5) + 10, 
+                          DOT_SIZE/2, 
+                          DOT_SIZE/2);
+            ctx.fillText("x " + String(score_map[food_array[i].src]), 
+                         955, 
+                         60 + i*(DOT_SIZE/2 + 5) + 10);
+        }
 
+    }
 
 }
 
@@ -188,7 +224,8 @@ function gameOver() {
     ctx.textAlign = 'center'; 
     ctx.font = 'normal bold ' + String(TEXT_SIZE) +'px monospace';
     
-    ctx.fillText('Game over, total score: ' + String(dots - START_DOTS) , C_WIDTH/2, C_HEIGHT/2 -100);
+    var go_string = 'Game over, total score: ' + String(dots - START_DOTS);
+    ctx.fillText(go_string, C_WIDTH/2, C_HEIGHT/2 -100);
     ctx.fillText('Play again?', C_WIDTH/2, C_HEIGHT/2 -100 + TEXT_SIZE*1.5);
 
     ctx.fillStyle = 'white';
@@ -203,6 +240,7 @@ function gameOver() {
                  C_WIDTH/2, 
                  C_HEIGHT/2 -100 + 2*TEXT_SIZE*1.5 + BUTTON_HEIGHT*1.5 + 30);
 
+    updateScoreboard();
     canvas.addEventListener('click', clickGameOverButtons); 
 }
 
@@ -212,7 +250,6 @@ function clickStartButton(event) {
         event.x < START_BUTTON_X + BUTTON_WIDTH &&
         event.y > START_BUTTON_Y && 
         event.y < START_BUTTON_Y + BUTTON_HEIGHT) {
-            loadImages();
             createSnake();
             locateFood();
             setTimeout("gameCycle()", DELAY);
@@ -242,6 +279,8 @@ function checkFood() {
     if ((x[0] == food_x) && (y[0] == food_y)) {
 
         dots++;
+
+        score_map[food.src] += 1;
         updateScoreboard();
         locateFood();
     }
@@ -276,8 +315,8 @@ function checkCollision() {
 
 function locateFood() {
 
-    var r = Math.floor(Math.random()*face_array.length);
-    food = face_array[r];
+    var r = Math.floor(Math.random()*food_array.length);
+    food = food_array[r];
 
     r = Math.floor(Math.random() * MAX_RAND);
     food_x = r * DOT_SIZE;
