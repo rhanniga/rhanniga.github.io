@@ -282,11 +282,20 @@ function checkFood() {
 
     if ((x[0] == food_x) && (y[0] == food_y)) {
 
-        dots++;
+        str_len = food.src.length;
+        start_index = str_len - 8;
+        end_index = str_len;
+        if(food.src.substring(start_index, end_index) == "kier.png") {
+            dots += 2;
+        }
+        else{
+            dots += 1;
+        }
 
         score_map[food.src] += 1;
         updateScoreboard();
         locateFood();
+
     }
 }
 
