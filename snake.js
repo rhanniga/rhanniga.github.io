@@ -126,9 +126,9 @@ function loadImages() {
     esben_face.src = 'faces/esben.png';
     food_array[6] = esben_face;
 
-    kier_face = new Image();
-    kier_face.src = 'faces/kier.png';
-    food_array[7] = kier_face;
+    peter_face = new Image();
+    peter_face.src = 'faces/peter.png';
+    food_array[7] = peter_face;
 
 }
 
@@ -282,15 +282,18 @@ function checkFood() {
 
     if ((x[0] == food_x) && (y[0] == food_y)) {
 
-        str_len = food.src.length;
-        start_index = str_len - 8;
-        end_index = str_len;
-        if(food.src.substring(start_index, end_index) == "kier.png") {
-            dots += 2;
-        }
-        else{
-            dots += 1;
-        }
+        // just in case we may want some face based logic later
+        // str_len = food.src.length;
+        // start_index = str_len - 8;
+        // end_index = str_len;
+        // if(food.src.substring(start_index, end_index) == "kier.png") {
+        //     dots += 2;
+        // }
+        // else{
+        //     dots += 1;
+        // }
+
+        dots += 1;
 
         score_map[food.src] += 1;
         updateScoreboard();
