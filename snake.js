@@ -130,6 +130,19 @@ function loadImages() {
     peter_face.src = 'faces/peter.png';
     food_array[7] = peter_face;
 
+/*    jaynee_face = new Image();
+    jaynee_face.src = 'faces/jaynee.png';
+    food_array[8] = jaynee_face;
+
+    jonathan_face = new Image();
+    jonathan_face.src = 'faces/jonathan.png';
+    food_array[9] = jonathan_face;
+
+    joseph_face = new Image();
+    joseph_face.src = 'faces/joseph.png';
+    food_array[10] = joseph_face;
+*/
+
 }
 
 function createSnake() {
