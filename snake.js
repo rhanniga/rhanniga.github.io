@@ -21,17 +21,15 @@ const START_DOTS = 3;
 const ALL_DOTS = 900;
 const MAX_RAND = 10;
 const DELAY = 120;
-const C_HEIGHT = 900;
-const C_WIDTH = 900;    
 
 const BUTTON_WIDTH = 100;
 const BUTTON_HEIGHT = 60;
-const START_BUTTON_X = C_WIDTH/2 - BUTTON_WIDTH/2;
-const START_BUTTON_Y = C_HEIGHT/2 - BUTTON_HEIGHT/2;
-const YES_BUTTON_X = C_WIDTH/2 - BUTTON_WIDTH/2;
-const YES_BUTTON_Y = C_HEIGHT/2 -100 + 2*TEXT_SIZE*1.5;
-const NO_BUTTON_X = C_WIDTH/2 - BUTTON_WIDTH/2;
-const NO_BUTTON_Y = C_HEIGHT/2 -100 + 2*TEXT_SIZE*1.5 + BUTTON_HEIGHT*1.5;
+const START_BUTTON_X = window.innerWidth/2 - BUTTON_WIDTH/2;
+const START_BUTTON_Y = window.innerHeight/2 - BUTTON_HEIGHT/2;
+const YES_BUTTON_X = window.innerWidth/2 - BUTTON_WIDTH/2;
+const YES_BUTTON_Y = window.innerHeight/2 -100 + 2*TEXT_SIZE*1.5;
+const NO_BUTTON_X = window.innerWidth/2 - BUTTON_WIDTH/2;
+const NO_BUTTON_Y = window.innerHeight/2 -100 + 2*TEXT_SIZE*1.5 + BUTTON_HEIGHT*1.5;
 
 const LEFT_KEY = 37;
 const RIGHT_KEY = 39;
@@ -51,10 +49,13 @@ var score_map = new Map();
 function init() {
     
     canvas = document.getElementById('gameCanvas');
+
+    // change canvas size to match client window size
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight
     ctx = canvas.getContext('2d'); 
 
     loadImages();
-    createScoreboard();
 
     ctx.fillStyle = 'white';
     ctx.fillRect(START_BUTTON_X, START_BUTTON_Y, BUTTON_WIDTH, BUTTON_HEIGHT);
@@ -63,7 +64,7 @@ function init() {
     ctx.textAlign = 'center'; 
     ctx.font = 'normal bold ' + String(TEXT_SIZE) +'px monospace';
     ctx.fillStyle = 'black';
-    ctx.fillText('START', C_WIDTH/2, C_HEIGHT/2);
+    ctx.fillText('START', canvas.width/2, canvas.height/2);
     canvas.addEventListener('click', clickStartButton);
 
     window.addEventListener("keydown", function(e) {
@@ -84,7 +85,6 @@ function resetGame() {
     movingDown = false;
 
     inGame = true;    
-    createScoreboard();
     createSnake();
     locateFood();
     setTimeout("gameCycle()", DELAY);
@@ -155,86 +155,21 @@ function createSnake() {
     }
 }
 
-function createScoreboard() {
-
-    ctx.clearRect(900, 0, 300, 900);
-
-    ctx.fillStyle = 'white';
-    ctx.fillRect(900, 0, 300, 900);
-
-    ctx.fillStyle = 'black';
-    ctx.rect(905, 2, 153, 895);
-    ctx.rect(905, 2, 153, 35);
-    ctx.stroke();
-
-    ctx.textAlign = 'left';
-    ctx.font = 'normal bold ' + String(TEXT_SIZE) +'px monospace';
-    ctx.fillText("SCORE: 0", 910, 25);
-
-    for(var i = 0; i < food_array.length; i++) {
-        score_map[food_array[i].src] = 0;
-    }
-
-
-}
-
-function updateScoreboard() {
-
-    ctx.clearRect(900, 0, 300, 900);
-
-    ctx.fillStyle = 'white';
-    ctx.fillRect(900, 0, 300, 900);
-
-    ctx.fillStyle = 'black';
-    ctx.rect(905, 2, 153, 895);
-    ctx.rect(905, 2, 153, 35);
-    ctx.stroke();
-
-    ctx.textAlign = 'left';
-    ctx.font = 'normal bold ' + String(TEXT_SIZE) +'px monospace';
-    if(dots - START_DOTS < 10) {
-        ctx.fillText("SCORE: " + String(dots - START_DOTS), 910, 25);
-    }
-    else {
-        ctx.fillText("SCORE:" + String(dots - START_DOTS), 910, 25);
-    }
-
-    for(var i = 0; i < food_array.length; i++) {
-
-        if(score_map[food_array[i].src] != 0) {
-            ctx.drawImage(food_array[i], 
-                          908, 
-                          40 + i*(DOT_SIZE/2+5) + 10, 
-                          DOT_SIZE/2, 
-                          DOT_SIZE/2);
-            ctx.fillText("x " + String(score_map[food_array[i].src]), 
-                         955, 
-                         60 + i*(DOT_SIZE/2 + 5) + 10);
-        }
-
-    }
-
-}
-
 function doDrawing() {
     
-    ctx.clearRect(0, 0, C_WIDTH, C_HEIGHT);
-    
-    if (inGame) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        ctx.drawImage(food, food_x, food_y, DOT_SIZE, DOT_SIZE);
+    ctx.drawImage(food, food_x, food_y, DOT_SIZE, DOT_SIZE);
 
-        for (var z = 0; z < dots; z++) {
-            
-            ctx.drawImage(dot, x[z], y[z], DOT_SIZE, DOT_SIZE);
-        }    
-    } else {
+    for (var z = 0; z < dots; z++) {
+        ctx.drawImage(dot, x[z], y[z], DOT_SIZE, DOT_SIZE);
+    }    
 
-        gameOver();
-    }        
 }
 
 function gameOver() {
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     ctx.fillStyle = 'white';
     ctx.textBaseline = 'middle'; 
@@ -242,8 +177,8 @@ function gameOver() {
     ctx.font = 'normal bold ' + String(TEXT_SIZE) +'px monospace';
     
     var go_string = 'Game over, total score: ' + String(dots - START_DOTS);
-    ctx.fillText(go_string, C_WIDTH/2, C_HEIGHT/2 -100);
-    ctx.fillText('Play again?', C_WIDTH/2, C_HEIGHT/2 -100 + TEXT_SIZE*1.5);
+    ctx.fillText(go_string, canvas.width/2, canvas.height/2 -100);
+    ctx.fillText('Play again?', canvas.width/2, canvas.height/2 -100 + TEXT_SIZE*1.5);
 
     ctx.fillStyle = 'white';
     ctx.fillRect(YES_BUTTON_X, YES_BUTTON_Y, BUTTON_WIDTH, BUTTON_HEIGHT);
@@ -251,13 +186,12 @@ function gameOver() {
                  
     ctx.fillStyle = 'black';
     ctx.fillText('YES', 
-                 C_WIDTH/2, 
-                 C_HEIGHT/2 -100 + 2*TEXT_SIZE*1.5 + 30);
+                 canvas.width/2, 
+                 canvas.height/2 -100 + 2*TEXT_SIZE*1.5 + 30);
     ctx.fillText('NO', 
-                 C_WIDTH/2, 
-                 C_HEIGHT/2 -100 + 2*TEXT_SIZE*1.5 + BUTTON_HEIGHT*1.5 + 30);
+                 canvas.width/2, 
+                 canvas.height/2 -100 + 2*TEXT_SIZE*1.5 + BUTTON_HEIGHT*1.5 + 30);
 
-    updateScoreboard();
     canvas.addEventListener('click', clickGameOverButtons); 
 }
 
@@ -294,24 +228,8 @@ function clickGameOverButtons(event) {
 function checkFood() {
 
     if ((x[0] == food_x) && (y[0] == food_y)) {
-
-        // just in case we may want some face based logic later
-        // str_len = food.src.length;
-        // start_index = str_len - 8;
-        // end_index = str_len;
-        // if(food.src.substring(start_index, end_index) == "kier.png") {
-        //     dots += 2;
-        // }
-        // else{
-        //     dots += 1;
-        // }
-
         dots += 1;
-
-        score_map[food.src] += 1;
-        updateScoreboard();
         locateFood();
-
     }
 }
 
@@ -338,7 +256,7 @@ function checkCollision() {
        
     }
     // Just trying to keep that sweet column count down...
-    var ctx_col = y[0] >= C_HEIGHT || y[0] < 0 || x[0] >= C_WIDTH || x[0] < 0;
+    var ctx_col = y[0] >= canvas.height || y[0] < 0 || x[0] >= canvas.width || x[0] < 0;
     if (ctx_col) inGame = false;
 }
 
@@ -365,34 +283,45 @@ function gameCycle() {
         doDrawing();
         setTimeout("gameCycle()", DELAY);
     }
+    else {
+        gameOver();
+    }
 }
 
 onkeydown = function(e) {
     
     var key = e.keyCode;
     
-    if ((key == LEFT_KEY || key == ALT_LEFT_KEY) && (!movingRight)) {
-        
+    if ((key == LEFT_KEY || key == ALT_LEFT_KEY)) {
+
+        if(movingRight) inGame = false;
+
         movingLeft = true;
         movingUp = false;
         movingDown = false;
     }
 
-    if ((key == RIGHT_KEY || key == ALT_RIGHT_KEY) && (!movingLeft)) {
+    if ((key == RIGHT_KEY || key == ALT_RIGHT_KEY)) {
         
+        if(movingLeft) inGame = false;
+
         movingRight = true;
         movingUp = false;
         movingDown = false;
     }
 
-    if ((key == UP_KEY || key == ALT_UP_KEY) && (!movingDown)) {
+    if ((key == UP_KEY || key == ALT_UP_KEY)) {
+
+        if(movingDown) inGame = false;
         
         movingUp = true;
         movingRight = false;
         movingLeft = false;
     }
 
-    if ((key == DOWN_KEY || key == ALT_DOWN_KEY) && (!movingUp)) {
+    if ((key == DOWN_KEY || key == ALT_DOWN_KEY)) {
+
+        if(movingUp) inGame = false;
         
         movingDown = true;
         movingRight = false;
