@@ -1,2 +1,2 @@
-# hannigan.xyz
-Trying to learn some web dev stuff through an awesome website!
+# Hello!
+Welcome to the repo for my website! This is just my first commit (after scrapping my previous website) so I don't really care about the readme...
