@@ -1,19 +1,15 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ryan Hannigan - Portfolio</title>
-</head>
-<body>
-    <div id="app"></div>
-    <script type="module">
-        import init, { main } from './target/wasm32-unknown-unknown/debug/ryanbytes.js';
-        async function run() {
-            await init();
-            main();
-        }
-        run();
-    </script>
-</body>
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Ryan's Resume</title>
+	</head>
+	<link data-trunk rel="icon" href="public/favicon.ico" />
+
+	<link data-trunk rel="copy-dir" href="public/fonts/" />
+
+	<link data-trunk rel="css" href="./styles.css" />
+
+	<link data-trunk rel="rust" data-wasm-opt="z" data-weak-refs />
 </html>

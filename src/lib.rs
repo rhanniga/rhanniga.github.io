@@ -19,22 +19,17 @@ pub fn App() -> impl IntoView {
     view! {
         <Html attr:lang="en" attr:dir="ltr" attr:data-theme="dark" />
 
-        // sets the document title
-        <Title text="Ryan Hannigan - Portfolio" />
-
-        // injects metadata in the <head> of the page
         <Meta charset="UTF-8" />
         <Meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        
-        // Add custom styles
-        <Style>{include_str!("../styles.css")}</Style>
 
         <Router>
-            <Routes fallback=|| view! { 
-                <div class="portfolio">
-                    <h1>"Page Not Found"</h1>
-                    <p>"The page you're looking for doesn't exist."</p>
-                </div>
+            <Routes fallback=|| {
+                view! {
+                    <div class="portfolio">
+                        <h1>"Page Not Found"</h1>
+                        <p>"The page you're looking for doesn't exist."</p>
+                    </div>
+                }
             }>
                 <Route path=path!("/") view=Home />
             </Routes>

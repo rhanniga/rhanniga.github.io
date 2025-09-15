@@ -1,0 +1,353 @@
+@font-face {
+	font-family: "PixelOperator";
+	src: url("/fonts/PixelOperator.ttf") format("truetype");
+	font-weight: normal;
+	font-style: normal;
+}
+
+/* Color Palette */
+:root {
+	--cherry-blossom-pink: #f7b2b7ff;
+	--light-coral: #f7717dff;
+	--thulian-pink: #de639aff;
+	--mardi-gras: #7f2982ff;
+	--dark-purple: #16001eff;
+}
+
+/* Global Styles */
+* {
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+}
+
+body {
+	background-color: var(--dark-purple);
+	color: var(--cherry-blossom-pink);
+	font-family: "PixelOperator", sans-serif;
+	/*line-height: 1.6;*/
+	/*margin: 0;
+	padding: 0;*/
+	/*font-size: 14px; /* Smaller base font size for pixelated font */
+}
+
+a {
+	color: var(--light-coral);
+	text-decoration: underline;
+}
+
+a:hover {
+	color: var(--thulian-pink);
+}
+
+/* Portfolio Layout */
+.portfolio {
+	max-width: 800px;
+	margin: 0 auto;
+	padding: 2rem;
+}
+
+/* Retro Computer Window */
+.retro-computer-window {
+	max-width: 900px;
+	margin: 2rem auto;
+	background-color: var(--light-coral);
+	overflow: hidden;
+}
+
+.window-titlebar {
+	background: var(--light-coral);
+	padding: 8px 12px;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	height: 32px;
+	position: relative;
+}
+
+.window-title {
+	color: white;
+	font-size: 0.9rem;
+	font-weight: bold;
+	text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
+}
+
+.window-controls {
+	display: flex;
+	gap: 6px;
+}
+
+.window-control {
+	width: 18px;
+	height: 18px;
+	border: 2px outset #666;
+	border-radius: 2px;
+	cursor: pointer;
+	position: relative;
+	transition: all 0.1s ease;
+	background: #555;
+}
+
+.window-control:hover {
+	background: #666;
+	border-color: #777;
+}
+
+.window-control:active {
+	border: 2px inset #666;
+	background: #444;
+}
+
+
+
+
+
+
+
+
+.window-content {
+	height: 70vh;
+	overflow-y: auto;
+	background-color: var(--dark-purple);
+	margin: 4px;
+	position: relative;
+}
+
+/* Custom Retro Scrollbar */
+.window-content::-webkit-scrollbar {
+	width: 20px;
+	background-color: #444;
+}
+
+.window-content::-webkit-scrollbar-track {
+	background: #333;
+	border: 2px inset #555;
+	border-radius: 0;
+}
+
+.window-content::-webkit-scrollbar-thumb {
+	background: linear-gradient(to bottom, #666, #444);
+	border: 2px outset #555;
+	border-radius: 0;
+	min-height: 30px;
+}
+
+.window-content::-webkit-scrollbar-thumb:hover {
+	background: linear-gradient(to bottom, #777, #555);
+}
+
+.window-content::-webkit-scrollbar-thumb:active {
+	background: linear-gradient(to bottom, #555, #333);
+	border: 2px inset #555;
+}
+
+.window-content::-webkit-scrollbar-button {
+	height: 20px;
+	background: linear-gradient(to bottom, #666, #444);
+	border: 2px outset #555;
+	display: block;
+}
+
+.window-content::-webkit-scrollbar-button:hover {
+	background: linear-gradient(to bottom, #777, #555);
+}
+
+.window-content::-webkit-scrollbar-button:active {
+	background: linear-gradient(to bottom, #555, #333);
+	border: 2px inset #555;
+}
+
+.window-content::-webkit-scrollbar-button:vertical:start:decrement {
+	background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath fill='%23ccc' d='M8 4l-4 4h8z'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: center;
+}
+
+.window-content::-webkit-scrollbar-button:vertical:end:increment {
+	background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath fill='%23ccc' d='M8 12l4-4H4z'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: center;
+}
+
+/* Firefox scrollbar fallback */
+.window-content {
+	scrollbar-width: thick;
+	scrollbar-color: #666 #333;
+}
+
+/* Header */
+.header {
+	margin-bottom: 3rem;
+	text-align: center;
+}
+
+.name {
+	font-size: 2rem; /* Slightly smaller for better readability with pixelated font */
+	font-weight: bold;
+	margin-bottom: 1rem;
+	color: var(--light-coral);
+}
+
+.contact {
+	font-size: 1rem;
+}
+
+.contact p {
+	margin: 0.5rem 0;
+}
+
+/* Sections */
+section {
+	margin-bottom: 3rem;
+}
+
+h2 {
+	font-size: 1.4rem; /* Adjusted for pixelated font */
+	margin-bottom: 1.5rem;
+	border-bottom: 2px solid var(--light-coral);
+	padding-bottom: 0.5rem;
+	color: var(--light-coral);
+}
+
+h3 {
+	font-size: 1rem; /* Adjusted for pixelated font */
+	margin-bottom: 0.5rem;
+	color: var(--thulian-pink);
+}
+
+/* Summary */
+.summary p {
+	margin-bottom: 1rem;
+	font-size: 1.1rem;
+}
+
+/* Experience */
+.job {
+	margin-bottom: 2rem;
+}
+
+.job-header {
+	margin-bottom: 1rem;
+}
+
+.job-header h3 {
+	display: inline;
+	margin-right: 1rem;
+}
+
+.company {
+	font-weight: bold;
+	margin-right: 1rem;
+}
+
+.location {
+	font-style: italic;
+	margin-right: 1rem;
+}
+
+.dates {
+	color: var(--thulian-pink);
+}
+
+.bullets {
+	list-style: disc;
+	margin-left: 2rem;
+}
+
+.bullets li {
+	margin-bottom: 0.5rem;
+}
+
+/* Education */
+.education-item {
+	margin-bottom: 2rem;
+}
+
+.education-header {
+	margin-bottom: 1rem;
+}
+
+.education-header h3 {
+	display: inline;
+	margin-right: 1rem;
+}
+
+.field {
+	font-weight: bold;
+	margin-right: 1rem;
+}
+
+.institution {
+	margin-right: 1rem;
+}
+
+/* Skills */
+.skill-group {
+	margin-bottom: 1.5rem;
+}
+
+.skill-group h3 {
+	margin-bottom: 1rem;
+	font-size: 1.2rem;
+}
+
+.skill-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+}
+
+.skill-tag {
+	background-color: var(--mardi-gras);
+	color: var(--cherry-blossom-pink);
+	padding: 0.3rem 0.8rem;
+	font-size: 0.9rem;
+	border: 1px solid var(--thulian-pink);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+	.retro-computer-window {
+		margin: 1rem;
+		max-width: calc(100% - 2rem);
+	}
+
+	.window-content {
+		height: 60vh;
+	}
+
+	.window-content::-webkit-scrollbar {
+		width: 16px;
+	}
+
+	.window-content::-webkit-scrollbar-button {
+		height: 16px;
+	}
+
+	.portfolio {
+		padding: 1rem;
+	}
+
+	.name {
+		font-size: 1.5rem; /* Adjusted for pixelated font on mobile */
+	}
+
+	h2 {
+		font-size: 1.2rem; /* Adjusted for pixelated font on mobile */
+	}
+
+	.job-header h3,
+	.education-header h3 {
+		display: block;
+		margin-bottom: 0.5rem;
+	}
+
+	.company,
+	.location,
+	.dates,
+	.field,
+	.institution {
+		display: block;
+		margin: 0.2rem 0;
+	}
+}
