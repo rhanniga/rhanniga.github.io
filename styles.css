@@ -1,0 +1,189 @@
+/* Global Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: #000000;
+    color: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+}
+
+a {
+    color: #ffffff;
+    text-decoration: underline;
+}
+
+a:hover {
+    color: #cccccc;
+}
+
+/* Portfolio Layout */
+.portfolio {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+/* Header */
+.header {
+    margin-bottom: 3rem;
+    text-align: center;
+}
+
+.name {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+}
+
+.contact {
+    font-size: 1rem;
+}
+
+.contact p {
+    margin: 0.5rem 0;
+}
+
+/* Sections */
+section {
+    margin-bottom: 3rem;
+}
+
+h2 {
+    font-size: 1.8rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 2px solid #ffffff;
+    padding-bottom: 0.5rem;
+}
+
+h3 {
+    font-size: 1.3rem;
+    margin-bottom: 0.5rem;
+}
+
+/* Summary */
+.summary p {
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+}
+
+/* Experience */
+.job {
+    margin-bottom: 2rem;
+}
+
+.job-header {
+    margin-bottom: 1rem;
+}
+
+.job-header h3 {
+    display: inline;
+    margin-right: 1rem;
+}
+
+.company {
+    font-weight: bold;
+    margin-right: 1rem;
+}
+
+.location {
+    font-style: italic;
+    margin-right: 1rem;
+}
+
+.dates {
+    color: #cccccc;
+}
+
+.bullets {
+    list-style: disc;
+    margin-left: 2rem;
+}
+
+.bullets li {
+    margin-bottom: 0.5rem;
+}
+
+/* Education */
+.education-item {
+    margin-bottom: 2rem;
+}
+
+.education-header {
+    margin-bottom: 1rem;
+}
+
+.education-header h3 {
+    display: inline;
+    margin-right: 1rem;
+}
+
+.field {
+    font-weight: bold;
+    margin-right: 1rem;
+}
+
+.institution {
+    margin-right: 1rem;
+}
+
+/* Skills */
+.skill-group {
+    margin-bottom: 1.5rem;
+}
+
+.skill-group h3 {
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+}
+
+.skill-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.skill-tag {
+    background-color: #333333;
+    color: #ffffff;
+    padding: 0.3rem 0.8rem;
+    border-radius: 1rem;
+    font-size: 0.9rem;
+    border: 1px solid #555555;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .portfolio {
+        padding: 1rem;
+    }
+    
+    .name {
+        font-size: 2rem;
+    }
+    
+    h2 {
+        font-size: 1.5rem;
+    }
+    
+    .job-header h3,
+    .education-header h3 {
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+    
+    .company,
+    .location,
+    .dates,
+    .field,
+    .institution {
+        display: block;
+        margin: 0.2rem 0;
+    }
+}
