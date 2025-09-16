@@ -30,7 +30,9 @@ jobs:
     - name: Checkout the treasure
       uses: actions/checkout@v4
     - name: Build the treasure
-      run: cargo build --verbose
+      run: 
+        rustup target add wasm32-unknown-unknown
+        cargo build --verbose
     - name: Bundle the treasure
       run: trunk build
     - name: Upload the treasure
