@@ -13,8 +13,8 @@ jobs:
   prereq:
     runs-on: ubuntu-latest
     steps:
-    - name: Install the treasure trunk (precomp binary)
-      run: cargo binstall trunk
+    - name: Install the treasure trunk
+      run: cargo install --locked trunk
       
   build:
     needs: prereq
