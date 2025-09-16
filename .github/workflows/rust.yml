@@ -10,8 +10,14 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  prereq:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Install the treasure trunk (precomp binary)
+      run: cargo binstall trunk
+      
   build:
-
+    needs: prereq
     runs-on: ubuntu-latest
 
     steps:
