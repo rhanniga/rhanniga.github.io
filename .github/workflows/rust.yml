@@ -15,13 +15,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Build the stuffs
+    - name: Checkout the treasure
+      uses: actions/checkout@v4
+    - name: Build the treasure
       run: cargo build --verbose
-    - name: Bundle the stuffs
+    - name: Bundle the treasure
       run: trunk build
     - name: Upload the treasure
-    - uses: actions/upload-pages-artifact@v3
+      uses: actions/upload-pages-artifact@v3
       with:
           path: dist/
   
