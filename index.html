@@ -1,45 +1,15 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="My website is currently under construction. Check back soon!">
-    <title>Under Construction</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            background-color: #f4f4f4;
-            color: #333;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-        h1 {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-        }
-        p {
-            font-size: 1.2rem;
-            margin-bottom: 2rem;
-        }
-        .construction-icon {
-            font-size: 5rem;
-            margin-bottom: 1rem;
-        }
-    </style>
-</head>
-<body>
-    <div class="construction-icon">🚧</div>
-    <h1>Ryan's website is under construction...</h1>
-    <p></p>
-    <script>
-        const randomSeconds = Math.floor(Math.random() * 100000) + 1;
-        document.querySelector('p').textContent = `Check back in ${randomSeconds} seconds.`;
-    </script>
-</body>
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Ryan's Resume</title>
+	</head>
+	<link data-trunk rel="icon" href="public/favicon.ico" />
+
+	<link data-trunk rel="copy-dir" href="public/fonts/" />
+
+	<link data-trunk rel="css" href="./styles.css" />
+
+	<link data-trunk rel="rust" data-wasm-opt="z" data-weak-refs />
 </html>

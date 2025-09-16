@@ -1,0 +1,216 @@
+{
+  "contactInfo": {
+    "name": "Dr. Ryan Hannigan",
+    "phone": "+1 832 465 1323",
+    "email": "ryan.p.hannigan@gmail.com",
+    "github": "rhanniga",
+    "linkedin": "partoniic",
+    "website": "ryanbytes.pizza"
+  },
+  "summaries": [
+    {
+      "text": "Software engineer, postdoctoral fellow, and lecturer with over 7 years of experience in the tech industry and academia, specializing in innovative software development and leadership. Proficient in Python and C++, with a proven track record of leading cross-functional teams and pioneering advanced technological solutions at renowned institutions like UT Austin and CERN. Passionate about technology, physics, and teaching.",
+      "keywords": [
+        "Software Engineer",
+        "Postdoctoral Fellow",
+        "Lecturer",
+        "Python",
+        "C++",
+        "Leadership"
+      ]
+    }
+  ],
+  "educations": [
+    {
+      "institution": "University of Texas at Austin",
+      "location": "Austin, TX",
+      "degree": "Doctorate Degree",
+      "fieldOfStudy": "Particle Physics",
+      "startDate": "2017-01-01",
+      "endDate": "2023-12-01",
+      "bullets": [
+        {
+          "text": "GPA: 4.0",
+          "keywords": []
+        },
+        {
+          "text": "Recipient of Graduate Provost's Excellence Fellowship, valued over $250,000",
+          "keywords": []
+        }
+      ]
+    },
+    {
+      "institution": "University of Houston",
+      "location": "Houston, TX",
+      "degree": "Bachelor of Science",
+      "fieldOfStudy": "Physics and Mathematics",
+      "startDate": "2012-09-01",
+      "endDate": "2017-05-01",
+      "bullets": [
+        {
+          "text": "GPA: 3.9",
+          "keywords": []
+        },
+        {
+          "text": "Graduated Magna Cum Laude, ranked #1 in the Physics Department",
+          "keywords": []
+        }
+      ]
+    }
+  ],
+  "jobs": [
+    {
+      "title": "Principal Software Engineer",
+      "company": "VenHub",
+      "location": "Pasadena, CA",
+      "startDate": "2023-10-01",
+      "endDate": "2025-07-10",
+      "bullets": [
+        {
+          "text": "Developed early software infrastructure, including microcrontroller firmware (C++), hub control servers and application backends (Python/FastAPI), computer vision server (Python/pytorch/torchvision), and the customer application frontend (TypeScript/React/React Native)",
+          "keywords": [
+            "C++",
+            "Python",
+            "FastAPI",
+            "PyTorch",
+            "Torchvision",
+            "TypeScript",
+            "React",
+            "React Native"
+          ]
+        },
+        {
+          "text": "Mentored and guided a team of 8+ engineers in developing the company's core technology, constantly exceeding project goals",
+          "keywords": []
+        },
+        {
+          "text": "Architected and implemented a multi-threaded robotic control system in Python, decreasing order processing time by over 50% and increasing SKU capacity by 10x",
+          "keywords": [
+            "Python"
+          ]
+        },
+        {
+          "text": "Established and enforced version control best practices on GitHub for organizational code management",
+          "keywords": [
+            "GitHub"
+          ]
+        },
+        {
+          "text": "Managed stakeholder relationships, including investors and vendors, to ensure technical goals aligned with business objectives",
+          "keywords": []
+        }
+      ]
+    },
+    {
+      "title": "Lecturer + Postdoctoral Fellow",
+      "company": "UT Austin",
+      "location": "Austin, TX",
+      "startDate": "2023-01-01",
+      "endDate": "Present",
+      "bullets": [
+        {
+          "text": "Conducted cutting-edge research on strange and heavy-flavor quark production at the LHC, performing multi-dimensional angular correlation analyses using C++ and Python with execution distributed across supercomputing clusters.",
+          "keywords": [
+            "C++",
+            "Python",
+            "LHC",
+            "Supercomputing Clusters"
+          ]
+        },
+        {
+          "text": "Taught full semester of PHY302K, an introductory physics course for STEM majors with over 100 students",
+          "keywords": []
+        },
+        {
+          "text": "Mentored multiple graduate and undergraduate students, providing regular guidance on research goals.",
+          "keywords": []
+        },
+        {
+          "text": "Authored and published multiple first-author papers in Physical Review C and presented research at key scientific conferences",
+          "keywords": []
+        },
+        {
+          "text": "Served on multiple review committees for the ALICE collaboration at CERN",
+          "keywords": [
+            "CERN"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Software Engineer",
+      "company": "ALICE at CERN",
+      "location": "Meyrin, Switzerland",
+      "startDate": "2018-01-01",
+      "endDate": "2022-12-01",
+      "bullets": [
+        {
+          "text": "Developed a C++ software suite to test and characterize hardware components for the ALICE detector upgrade, focusing on picosecond timing resolution and high-throughput data transfers",
+          "keywords": [
+            "C++"
+          ]
+        },
+        {
+          "text": "Conducted initial prototyping in Python and identified regressions using unit tests (unittest)",
+          "keywords": [
+            "Python",
+            "Unit Tests"
+          ]
+        },
+        {
+          "text": "Integrated hardware testing into the GitLab pipeline to ensure accuracy and consistency",
+          "keywords": [
+            "GitLab"
+          ]
+        }
+      ]
+    }
+  ],
+  "projects": [],
+  "skills": [
+    {
+      "name": "Python",
+      "experience": "expert"
+    },
+    {
+      "name": "Problem Solving",
+      "experience": "expert"
+    },
+    {
+      "name": "Leadership",
+      "experience": "expert"
+    },
+    {
+      "name": "C++",
+      "experience": "experienced"
+    },
+    {
+      "name": "Data Science",
+      "experience": "experienced"
+    },
+    {
+      "name": "Bash",
+      "experience": "experienced"
+    },
+    {
+      "name": "Teaching",
+      "experience": "experienced"
+    },
+    {
+      "name": "Rust",
+      "experience": "skilled"
+    },
+    {
+      "name": "Machine Learning",
+      "experience": "skilled"
+    },
+    {
+      "name": "C",
+      "experience": "skilled"
+    },
+    {
+      "name": "TypeScript",
+      "experience": "skilled"
+    }
+  ]
+}
