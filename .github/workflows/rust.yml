@@ -9,18 +9,24 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
-jobs:
-  prereq:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Install the treasure trunk
-      run: cargo install --locked trunk
-      
+jobs:  
   build:
-    needs: prereq
     runs-on: ubuntu-latest
 
     steps:
+    - name: Cache the treasure?
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          ~/.cargo/bin # Cache the .cargo/bin directory
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+    - name: Install the treasure trunk
+      run: cargo install --locked trunk
     - name: Checkout the treasure
       uses: actions/checkout@v4
     - name: Build the treasure
