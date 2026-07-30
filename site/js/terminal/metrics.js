@@ -9,18 +9,15 @@
  */
 
 import { clamp } from "../util.js";
+import { GLYPH } from "../render/layout.js";
 
-/** Terminal layout constants shared with the render layer. */
-export const LAYOUT = {
-  MIN_COLS: 20,
-  MAX_COLS: 120,
-  /* Box-drawing light horizontal. Reliably single-cell in every system
-   * monospace stack. If PixelOperatorMono turns out not to cover it, this is
-   * the one constant to flip to "-". */
-  RULE: "─",
-  /* Guaranteed single-cell in every monospace font, unlike "•" and "▸". */
-  BULLET: "-",
-};
+/**
+ * Column bounds. The floor keeps layout from collapsing on a very narrow phone;
+ * the ceiling stops a full-width 4K window from producing 300-column lines that
+ * are miserable to read.
+ */
+export const MIN_COLS = 20;
+export const MAX_COLS = 120;
 
 const PROBE_RUN = 100;
 
@@ -68,7 +65,7 @@ export class Metrics {
 
     const avail = this.#content.clientWidth;
     const fit = Math.floor(avail / this.#cellWidth);
-    const next = clamp(LAYOUT.MIN_COLS, fit, LAYOUT.MAX_COLS);
+    const next = clamp(MIN_COLS, fit, MAX_COLS);
 
     if (next === this.#cols) return false;
     this.#cols = next;
@@ -91,7 +88,7 @@ export class Metrics {
     };
     const m = measure("M".repeat(PROBE_RUN));
     const i = measure("i".repeat(PROBE_RUN));
-    const rule = measure(LAYOUT.RULE.repeat(PROBE_RUN));
+    const rule = measure(GLYPH.RULE.repeat(PROBE_RUN));
     // Sub-pixel tolerance over a 100-glyph run.
     const mono = Math.abs(m - i) < 1;
     return { mono, rule: Math.abs(rule - m) < 1 };

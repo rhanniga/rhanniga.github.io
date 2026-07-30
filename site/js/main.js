@@ -2,15 +2,19 @@
 /**
  * Bootstrap.
  *
- * M2 scope: the terminal is interactive. Real resume commands arrive in M3, the
- * boot/POST sequence in M5.
+ * M3 scope: a working shell over the real resume. The boot/POST sequence is M5,
+ * `ask` is M6.
  */
 
-import { c, sp, link } from "./render/chunk.js";
+import { c, sp, blank } from "./render/chunk.js";
+import { rule } from "./render/layout.js";
 import { Terminal } from "./terminal/terminal.js";
 import { ShellMode } from "./terminal/shell-mode.js";
-import { LAYOUT } from "./terminal/metrics.js";
+import { History } from "./terminal/history.js";
 import { setIdentity } from "./terminal/prompt.js";
+import { buildRegistry } from "./commands/index.js";
+import { Env } from "./shell/env.js";
+import { loadResume, emptyResume } from "./data/resume.js";
 import { resolveIp } from "./identity.js";
 
 /**
@@ -32,33 +36,68 @@ const term = new Terminal({
   probe: must("metrics"),
 });
 
-/* ── Placeholder banner ──────────────────────────────────────────────────
- * Stands in for the real POST/MOTD sequence (M5). Kept deliberately short so
- * it does not bury the prompt at 375px. */
-const w = term.writer;
-const cols = term.metrics.cols;
+/* ── Resume data ─────────────────────────────────────────────────────────
+ * Awaited before the first prompt, but the fetch is 6 KB from the same origin,
+ * so it resolves faster than the eye. From M5 the boot sequence covers it
+ * outright and reports the real byte count as it lands.
+ *
+ * A failure must not produce a white screen: the shell comes up either way, the
+ * resume commands report honestly, and everything else keeps working. */
+let resume = emptyResume();
+/** @type {string | null} */
+let loadError = null;
+try {
+  resume = await loadResume();
+} catch (err) {
+  loadError = err instanceof Error ? err.message : String(err);
+  console.error("[resume]", err);
+}
 
-w.row([c("hannigan.sh", "heading"), c("  — terminal rewrite, M2", "dim")]);
-w.row([c(LAYOUT.RULE.repeat(cols), "rule")]);
-w.row([]);
-w.row([c("Line editing is live. Try:", "dim")]);
-w.row([sp(2), c("arrows, Home/End, Ctrl+A/E/U/K/Y, Alt+B/F, Alt+Backspace")]);
-w.row([sp(2), c("Ctrl+L"), c(" clear", "dim"), c("   Ctrl+C"), c(" abort", "dim")]);
-w.row([sp(2), c("paste a multi-line string — newlines collapse to spaces", "dim")]);
-w.row([]);
-w.row([
-  c("Not yet implemented: ", "dim"),
-  c("history, tab completion, and every actual command."),
-]);
-w.row([sp(2), c("resume.json", "dim"), c(" → "), link("resume.json", "./resume.json")]);
-w.row([]);
-w.flush();
+/* ── Banner ─────────────────────────────────────────────────────────────── */
 
-term.start(new ShellMode());
+function motd() {
+  const w = term.writer;
+  const cols = term.metrics.cols;
 
-console.log(
-  `[metrics] cols=${term.metrics.cols} cell=${term.metrics.cellWidth.toFixed(3)}px`,
-);
+  w.row([c("hannigan.sh", "heading")]);
+  w.row(rule(cols));
+  w.row(blank);
+
+  if (loadError !== null) {
+    // Terminal-authentic failure rather than a blank section or a modal.
+    w.row([c("bash: resume.json: No such file or directory", "error")]);
+    w.row([sp(2), c("the resume data failed to load; shell commands still work", "dim")]);
+    w.row([sp(2), c(loadError, "dim")]);
+  } else {
+    w.row([c(resume.contactInfo.name, "bright")]);
+    const first = resume.summaries[0];
+    if (first !== undefined) {
+      const short = first.text.split(". ")[0] ?? "";
+      w.row([c(short + ".", "dim")]);
+    }
+  }
+
+  w.row(blank);
+  w.row([
+    c("Type "),
+    c("help", "bright"),
+    c(" for commands, or start with "),
+    c("summary", "bright"),
+    c("."),
+  ]);
+  w.row(blank);
+  w.flush();
+}
+
+motd();
+
+/* ── Shell ──────────────────────────────────────────────────────────────── */
+
+const env = new Env();
+const history = new History("shell");
+const registry = buildRegistry();
+
+term.start(new ShellMode({ registry, env, resume, history, motd }));
 
 /* Resolve the visitor's IP for the prompt.
  *

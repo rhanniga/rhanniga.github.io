@@ -212,5 +212,22 @@
       "name": "TypeScript",
       "experience": "skilled"
     }
+  ],
+  "hobbies": [
+    {
+      "name": "TODO",
+      "text": "TODO - replace with a real hobby. Same shape as summaries and bullets, so the keywords array below drives the same inline highlighting.",
+      "keywords": []
+    },
+    {
+      "name": "TODO",
+      "text": "TODO - two to four of these reads best; the hobbies command handles any number.",
+      "keywords": []
+    },
+    {
+      "name": "TODO",
+      "text": "TODO - the name field is optional. Drop it and the entry renders as a plain bulleted paragraph instead.",
+      "keywords": []
+    }
   ]
 }

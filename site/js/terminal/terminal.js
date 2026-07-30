@@ -40,7 +40,9 @@ const BLINK_RESUME_MS = 500;
  * @property {() => void} popMode
  * @property {() => void} renderInput
  * @property {() => void} scrollToBottom
+ * @property {() => void} scrollToTop
  * @property {(n: number) => void} scrollPages
+ * @property {() => void} shutdown
  */
 
 export class Terminal {
@@ -61,6 +63,8 @@ export class Terminal {
 
   /** @type {boolean} */ #composing = false;
   /** @type {number} */ #blinkTimer = 0;
+  /** Set by shutdown(); all input is ignored afterwards. */
+  /** @type {boolean} */ #dead = false;
 
   /**
    * @param {object} els
@@ -134,8 +138,27 @@ export class Terminal {
       },
       renderInput: () => this.renderInput(),
       scrollToBottom: () => this.#writer.scrollToBottom(),
+      scrollToTop: () => {
+        this.#viewport.scrollTop = 0;
+      },
       scrollPages: (n) => this.#scrollPages(n),
+      shutdown: () => this.shutdown(),
     };
+  }
+
+  /**
+   * End the session: hide the prompt and stop accepting input.
+   *
+   * Deliberately does not clear the screen -- closing a real terminal leaves the
+   * transcript visible, and wiping it would destroy whatever the visitor was
+   * reading. A reload brings it back, which the caller says so.
+   */
+  shutdown() {
+    this.#dead = true;
+    this.#inputline.hidden = true;
+    this.#kbd.blur();
+    this.#kbd.disabled = true;
+    this.#root.dataset.focused = "false";
   }
 
   /**
@@ -157,6 +180,10 @@ export class Terminal {
   /* ── Rendering the input line ────────────────────────────────────────── */
 
   renderInput() {
+    if (this.#dead) {
+      this.#inputline.hidden = true;
+      return;
+    }
     const mode = this.#modes.top();
     const prompt = mode.prompt();
 
@@ -334,6 +361,8 @@ export class Terminal {
   #onKeyDown(ev) {
     // Never steal OS/browser shortcuts (Cmd+C, Cmd+A, Cmd+R, ...).
     if (ev.metaKey) return;
+    // After `exit`, selection and copy still work but nothing is interactive.
+    if (this.#dead) return;
 
     const k = normalize(ev);
 
