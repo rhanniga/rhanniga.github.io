@@ -143,6 +143,12 @@ body {
   background: var(--cursor-bg);
   color: var(--cursor-fg);
 }
+/* An author `display` declaration beats the UA stylesheet's [hidden]
+ * { display: none }, so hiding the cursor for a non-editable mode needs this
+ * explicitly. Without it, setting .hidden on the cursor does nothing. */
+.cursor[hidden] {
+  display: none;
+}
 /* steps(1, end) -- hard on/off. A fade is an instant "this is a web page"
  * tell. Blinking is suppressed while typing by toggling data-blink. */
 .cursor[data-blink="true"] {

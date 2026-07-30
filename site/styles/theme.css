@@ -127,6 +127,20 @@
 .tk-json-punct {
   color: var(--fg-dim);
 }
+.tk-prompt-user {
+  color: var(--prompt-user);
+}
+.tk-prompt-path {
+  color: var(--prompt-path);
+}
+.tk-prompt-sigil {
+  color: var(--prompt-sigil);
+}
+/* A different hue IS the mode indicator -- this is what tells you at a glance
+ * that you are inside `ask -i` and not at the shell. */
+.tk-prompt-repl {
+  color: var(--prompt-repl);
+}
 
 /* ── Pixel font: opt-in via the `font` command ─────────────────────────
  * Not the default. Pixel fonts are crisp only at exact integer multiples of
