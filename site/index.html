@@ -70,14 +70,15 @@
              #announcer gets complete unwrapped blocks instead. -->
         <div class="output" id="output" aria-hidden="true"></div>
 
-        <div class="inputline" id="inputline" aria-hidden="true" hidden>
-          <span class="prompt"></span
-          ><span class="line"
-            ><span class="line-pre"></span
-            ><span class="cursor" data-blink="true">&nbsp;</span
-            ><span class="line-post"></span
-          ></span>
-        </div>
+        <!-- Deliberately all on one line, and DO NOT let a formatter re-indent
+             it. .inputline is white-space: pre-wrap, which it has to be so that
+             leading spaces in a typed line survive -- and that also makes the
+             indentation between these tags significant, rendering as a literal
+             newline plus spaces before the prompt. terminal.js strips stray text
+             nodes here as a second line of defence, because an HTML formatter
+             reflowing this file would otherwise silently break the prompt. -->
+        <!-- prettier-ignore -->
+        <div class="inputline" id="inputline" aria-hidden="true" hidden><span class="prompt"></span><span class="line"><span class="line-pre"></span><span class="cursor" data-blink="true">&nbsp;</span><span class="line-post"></span></span></div>
 
         <textarea
           id="kbd"

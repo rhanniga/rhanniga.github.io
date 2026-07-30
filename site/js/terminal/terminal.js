@@ -49,6 +49,7 @@ export class Terminal {
   /** @type {HTMLElement} */ #output;
   /** @type {HTMLElement} */ #inputline;
   /** @type {HTMLElement} */ #promptEl;
+  /** @type {HTMLElement} */ #lineEl;
   /** @type {HTMLElement} */ #preEl;
   /** @type {HTMLElement} */ #curEl;
   /** @type {HTMLElement} */ #postEl;
@@ -85,9 +86,11 @@ export class Terminal {
       return el;
     };
     this.#promptEl = q(".prompt");
+    this.#lineEl = q(".line");
     this.#preEl = q(".line-pre");
     this.#curEl = q(".cursor");
     this.#postEl = q(".line-post");
+    this.#stripLayoutWhitespace();
 
     this.#metrics = new Metrics({ probe, content: output });
     this.#writer = new Writer({
@@ -188,11 +191,38 @@ export class Terminal {
     const { pre, at, post } = buf.split();
     this.#preEl.textContent = pre;
     // At end-of-line there is no character under the cursor, so substitute a
-    // non-breaking space to give the block cursor a cell to occupy.
+    // non-breaking space to give the block cursor a cell to occupy. It must be
+    // U+00A0 and not a plain space: under pre-wrap a trailing plain space may
+    // hang and be dropped at a wrap point, which would collapse the cursor to
+    // nothing at exactly the width where the line wraps.
     this.#curEl.textContent = at === "" ? " " : at;
     this.#postEl.textContent = post;
 
     this.#positionSink();
+  }
+
+  /**
+   * Delete whitespace-only text nodes sitting *between* the input line's spans.
+   *
+   * `.inputline` is `white-space: pre-wrap`, which it must be so that leading
+   * spaces in a typed line survive. That also makes the indentation between tags
+   * in index.html significant: pretty-printed markup renders as a literal newline
+   * plus spaces, pushing the prompt down and to the right.
+   *
+   * The markup is authored on one line to avoid this, but any HTML formatter
+   * reflowing index.html would silently reintroduce it, so it is also stripped
+   * here. Only the two container elements are swept -- the content spans are
+   * managed by renderInput(), and the cursor's placeholder is a non-breaking
+   * space that `trim()` would consider whitespace and eat.
+   */
+  #stripLayoutWhitespace() {
+    for (const parent of [this.#inputline, this.#lineEl]) {
+      for (const node of [...parent.childNodes]) {
+        if (node.nodeType === Node.TEXT_NODE && (node.textContent ?? "").trim() === "") {
+          node.remove();
+        }
+      }
+    }
   }
 
   /**
