@@ -13,6 +13,7 @@ import { ShellMode } from "./terminal/shell-mode.js";
 import { History } from "./terminal/history.js";
 import { setIdentity } from "./terminal/prompt.js";
 import { buildRegistry } from "./commands/index.js";
+import { applyStoredAppearance } from "./commands/theme-cmds.js";
 import { Env } from "./shell/env.js";
 import { loadResume, emptyResume } from "./data/resume.js";
 import { resolveIp } from "./identity.js";
@@ -26,6 +27,10 @@ function must(id) {
   if (el === null) throw new Error(`missing #${id} in index.html`);
   return el;
 }
+
+// data-crt was already stamped before first paint by the inline script in
+// index.html; this reconciles the font and keeps both in one place.
+applyStoredAppearance();
 
 const term = new Terminal({
   root: must("terminal"),

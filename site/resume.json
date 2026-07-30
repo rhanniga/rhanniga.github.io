@@ -67,7 +67,7 @@
       "endDate": "2025-07-10",
       "bullets": [
         {
-          "text": "Developed early software infrastructure, including microcrontroller firmware (C++), hub control servers and application backends (Python/FastAPI), computer vision server (Python/pytorch/torchvision), and the customer application frontend (TypeScript/React/React Native)",
+          "text": "Developed early software infrastructure, including microcontroller firmware (C++), hub control servers and application backends (Python/FastAPI), computer vision server (Python/PyTorch/torchvision), and the customer application frontend (TypeScript/React/React Native)",
           "keywords": [
             "C++",
             "Python",

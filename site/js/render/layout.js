@@ -23,6 +23,19 @@ export const GLYPH = {
   BULLET: "-",
 };
 
+/** ASCII fallback, for a font that does not cover U+2500. */
+export const ASCII_RULE = "-";
+
+/**
+ * Swap the rule glyph. Called by the `font` command when metrics.probeFont()
+ * reports that the newly selected face does not render U+2500 as a single cell --
+ * which is the one thing that would silently break every section heading.
+ * @param {string} ch
+ */
+export function setRuleGlyph(ch) {
+  GLYPH.RULE = ch;
+}
+
 /** @typedef {import('./chunk.js').Chunk} Chunk */
 /** @typedef {import('./chunk.js').Line} Line */
 

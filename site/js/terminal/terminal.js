@@ -43,6 +43,8 @@ const BLINK_RESUME_MS = 500;
  * @property {() => void} scrollToTop
  * @property {(n: number) => void} scrollPages
  * @property {() => void} shutdown
+ * @property {() => {mono: boolean, rule: boolean}} probeFont
+ * @property {() => number} remeasure
  */
 
 export class Terminal {
@@ -143,6 +145,12 @@ export class Terminal {
       },
       scrollPages: (n) => this.#scrollPages(n),
       shutdown: () => this.shutdown(),
+      probeFont: () => this.#metrics.probeFont(),
+      remeasure: () => {
+        this.#metrics.measure();
+        this.renderInput();
+        return this.#metrics.cols;
+      },
     };
   }
 

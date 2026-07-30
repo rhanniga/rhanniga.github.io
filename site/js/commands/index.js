@@ -11,6 +11,8 @@ import { Registry } from "../shell/registry.js";
 import { helpCmd } from "./help.js";
 import { resumeCommands } from "./resume-cmds.js";
 import { builtinCommands } from "./builtins.js";
+import { fileCommands } from "./files.js";
+import { themeCommands } from "./theme-cmds.js";
 import { easterCommands } from "./easter.js";
 
 /**
@@ -23,6 +25,8 @@ export function buildRegistry() {
     // `ask` slots in here at M6.
     helpCmd,
     ...builtinCommands,
+    ...fileCommands,
+    ...themeCommands,
     ...easterCommands,
   ]);
 }
