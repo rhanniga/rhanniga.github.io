@@ -1,2 +1,21 @@
-/target
-/dist
+# Build output for the C -> WASM `ask` module. Produced by `make -C engine wasm`
+# locally, or by the deploy workflow in CI. Never committed -- clang is
+# preinstalled on ubuntu-latest, so rebuilding costs ~2s.
+site/ask/*
+!site/ask/.gitkeep
+
+# Model weights and conversion intermediates. The shipped weights live in a
+# HuggingFace repo pinned by revision SHA -- see site/js/llm/config.js.
+*.hslm
+*.bin
+!site/data/tokenizer.bin
+
+# Python tooling
+tools/.venv/
+__pycache__/
+
+# Native engine build output
+engine/engine
+engine/*.o
+
+.DS_Store

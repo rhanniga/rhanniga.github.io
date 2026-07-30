@@ -1,0 +1,280 @@
+/* Terminal layout, rows, cursor, and the keyboard sink. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:root {
+  /* System monospace, deliberately. Zero bytes, zero FOUT (a terminal that
+   * reflows after a webfont loads looks broken), guaranteed box-drawing
+   * coverage -- and it looks native: the visitor sees the font their own
+   * terminal uses, which increases perceived authenticity rather than
+   * imposing a designer font. */
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas,
+    "DejaVu Sans Mono", "Liberation Mono", monospace;
+
+  /* Media query rather than clamp(), to keep integer pixel sizes for the
+   * pixel-font path. */
+  --font-size: 14px;
+  --line-height: 20px; /* 14 * 1.4 = 19.6, rounded to an integer */
+  --pad: 8px;
+}
+@media (min-width: 480px) {
+  :root {
+    --font-size: 16px;
+    --line-height: 22px; /* 16 * 1.4 = 22.4, rounded to an integer */
+    --pad: 16px;
+  }
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+}
+
+body {
+  color: var(--fg);
+  font-family: var(--font-mono);
+  font-size: var(--font-size);
+  line-height: var(--line-height);
+  font-variant-ligatures: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Terminal shell ───────────────────────────────────────────────────── */
+#terminal {
+  position: relative;
+  /* 100dvh tracks the mobile URL bar; the visualViewport listener in
+   * terminal.js overrides this when the on-screen keyboard is up. */
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--bg);
+  touch-action: manipulation; /* drop the 300ms tap delay */
+}
+
+#terminal:has(.kbd-sink:focus-visible) {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.viewport {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  /* Never `smooth`. Terminals do not animate scroll. */
+  scroll-behavior: auto;
+  padding: var(--pad);
+
+  /* Reserve the scrollbar gutter permanently. Without this, the first write
+   * makes a scrollbar appear, which shrinks the content width, which fires the
+   * ResizeObserver, which re-measures the column count, which re-wraps and
+   * re-renders -- a feedback path that converges in practice but can oscillate
+   * when content sits right at the overflow threshold. Reserving the gutter
+   * removes the whole class of bug, and it also matches a real terminal, whose
+   * width does not jump when output appears. */
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--nord3) transparent;
+}
+
+/* ── Output rows ──────────────────────────────────────────────────────── */
+.output {
+  /* Chrome's scroll anchoring otherwise fights programmatic scroll during
+   * streaming output. */
+  overflow-anchor: none;
+}
+
+.row {
+  /* Hard-wrapped at emit time to the measured column count; pre-wrap is the
+   * safety net so shrinking the window soft-wraps instead of clipping or
+   * introducing horizontal scroll. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  min-height: var(--line-height);
+}
+
+.output,
+.inputline {
+  user-select: text;
+}
+.prompt,
+.cursor {
+  user-select: none; /* keep them out of copied text */
+}
+
+::selection {
+  background: var(--selection-bg);
+  color: var(--nord6);
+}
+
+/* Links must occupy exactly their character cells: no padding, margin,
+ * border, or font change. */
+.row a,
+.inputline a {
+  color: var(--link);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+}
+.row a:hover,
+.row a:focus-visible {
+  color: var(--link-hover);
+}
+
+/* ── Input line ───────────────────────────────────────────────────────── */
+.inputline {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  min-height: var(--line-height);
+}
+
+.cursor {
+  display: inline-block;
+  min-width: 1ch;
+  background: var(--cursor-bg);
+  color: var(--cursor-fg);
+}
+/* steps(1, end) -- hard on/off. A fade is an instant "this is a web page"
+ * tell. Blinking is suppressed while typing by toggling data-blink. */
+.cursor[data-blink="true"] {
+  animation: blink 1.06s steps(1, end) infinite;
+}
+@keyframes blink {
+  0%,
+  49.9% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+/* Unfocused: hollow outline, no blink. Every real terminal does this. */
+#terminal[data-focused="false"] .cursor {
+  animation: none;
+  background: transparent;
+  color: inherit;
+  box-shadow: inset 0 0 0 1px var(--cursor-bg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .cursor[data-blink="true"] {
+    animation: none;
+  }
+}
+
+/* ── Keyboard sink ────────────────────────────────────────────────────────
+ * A real, focusable <textarea> -- the only approach that gets the mobile
+ * on-screen keyboard, native paste with text/plain, and IME composition all
+ * at once. It is an acquisition device only; line-buffer.js is the source of
+ * truth and this element's value is cleared after every input event.
+ *
+ * Hidden via opacity, NOT display:none / visibility:hidden (both prevent
+ * focus and the OSK) and NOT left:-9999px (iOS scrolls the page sideways when
+ * the keyboard opens).
+ *
+ * font-size MUST stay >= 16px even though it is invisible: iOS Safari
+ * auto-zooms the page when focusing any input below 16px. This is the single
+ * most common mobile-terminal bug. */
+.kbd-sink {
+  position: absolute;
+  width: 1px;
+  height: 1em;
+  padding: 0;
+  border: 0;
+  margin: 0;
+  opacity: 0;
+  resize: none;
+  overflow: hidden;
+  font-size: 16px;
+  font-family: inherit;
+  line-height: 1;
+  color: transparent;
+  background: transparent;
+  caret-color: transparent;
+  white-space: pre;
+  z-index: 0;
+}
+
+/* ── Cell-measurement probe ───────────────────────────────────────────────
+ * Must inherit the exact font context of .row. metrics.js measures a
+ * 100-character run here and divides, which avoids per-glyph subpixel
+ * rounding error. */
+.metrics {
+  position: absolute;
+  visibility: hidden;
+  pointer-events: none;
+  top: -9999px;
+  left: 0;
+  white-space: pre;
+  font-family: var(--font-mono);
+  font-size: var(--font-size);
+  line-height: var(--line-height);
+}
+
+/* ── Soft keys (mobile only) ──────────────────────────────────────────────
+ * Not decoration: iOS and Android software keyboards have no Ctrl key and no
+ * arrow keys, so without these, history, completion, and abort are literally
+ * unreachable on a phone. Wired up in M14. */
+.softkeys {
+  display: none;
+}
+@media (pointer: coarse) {
+  .softkeys:not([hidden]) {
+    display: flex;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 3;
+    gap: 1px;
+    background: var(--bg-alt);
+  }
+  .softkeys button {
+    flex: 1;
+    padding: 10px 0;
+    border: 0;
+    background: var(--bg-alt);
+    color: var(--fg);
+    font-family: inherit;
+    font-size: var(--font-size);
+  }
+  .softkeys button:active {
+    background: var(--selection-bg);
+  }
+}
+
+/* ── Accessibility helpers ────────────────────────────────────────────── */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: var(--pad);
+  z-index: 10;
+  padding: 8px 12px;
+  background: var(--bg-alt);
+  color: var(--fg-bright);
+  text-decoration: underline;
+}
+.skip-link:focus {
+  top: var(--pad);
+}

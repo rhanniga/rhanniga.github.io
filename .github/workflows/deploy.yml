@@ -1,0 +1,95 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Least privilege at the workflow level; the deploy job elevates.
+permissions:
+  contents: read
+
+# Overlapping deploys to a Pages environment race each other.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # FIRST. The workflow this replaces ran actions/cache and
+      # `cargo install --locked trunk` *before* checkout, so --locked had no
+      # lockfile to read and hashFiles('**/Cargo.lock') hashed an empty
+      # workspace -- the primary cache key was degenerate and always fell
+      # through to restore-keys.
+      - uses: actions/checkout@v4
+
+      # Build the C -> WASM `ask` engine into the gitignored site/ask/ slot.
+      # clang + wasm-ld ship on ubuntu-latest, so this costs ~2s -- compare
+      # ~60-120s to install emsdk. Skipped until engine/ exists (M10).
+      - name: Build the ask engine
+        run: |
+          if [ ! -f engine/Makefile ]; then
+            echo "engine/ not present yet — skipping (site degrades to grep-mode)"
+            exit 0
+          fi
+          clang --version
+          wasm-ld --version || { sudo apt-get update && sudo apt-get install -y lld; }
+          make -C engine wasm wasm-scalar OUT=../site/ask
+          for f in site/ask/engine.simd.wasm site/ask/engine.wasm; do
+            size=$(stat -c%s "$f")
+            echo "$f: $size bytes"
+            [ "$size" -lt 204800 ] || { echo "::error::$f exceeds 200KB"; exit 1; }
+          done
+
+      # Runs the .wasm under node against PyTorch-derived golden logits. Node
+      # has full WASM SIMD, a debugger, and no browser.
+      - name: Engine golden test
+        run: |
+          if [ ! -f engine/tests/run_wasm.mjs ]; then
+            echo "engine tests not present yet — skipping"
+            exit 0
+          fi
+          node engine/tests/run_wasm.mjs \
+            --wasm site/ask/engine.simd.wasm \
+            --golden engine/tests/fixtures/golden.json
+
+      # Node's built-in runner, zero dependencies. The bare-directory form
+      # (`node --test tests/`) is broken on Node 26 -- no args auto-discovers.
+      - name: Unit tests
+        run: node --test
+
+      # With no build step and no CI type checking, a JSON syntax error would
+      # otherwise reach production and blank every resume command. jq is
+      # preinstalled on ubuntu-latest.
+      - name: Verify artifact contents
+        run: |
+          test -f site/index.html
+          test -f site/resume.json
+          jq empty site/resume.json
+          # A missing CNAME wipes the Pages custom-domain setting on deploy.
+          test -f site/CNAME
+          echo "CNAME -> $(cat site/CNAME)"
+
+      - uses: actions/configure-pages@v5
+
+      # site/ IS the artifact. No staging, no rsync, no exclude list: whatever
+      # is in this directory is what gets published, which is what makes
+      # "is it public?" answerable by "is it under site/?".
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

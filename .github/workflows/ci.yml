@@ -1,0 +1,47 @@
+name: CI
+
+# Validation only. The workflow this replaces triggered the *deploy* job on
+# pull_request, which meant every PR published straight to production.
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the ask engine
+        run: |
+          if [ ! -f engine/Makefile ]; then
+            echo "engine/ not present yet — skipping"
+            exit 0
+          fi
+          clang --version
+          wasm-ld --version || { sudo apt-get update && sudo apt-get install -y lld; }
+          make -C engine wasm wasm-scalar OUT=../site/ask
+          make -C engine test
+
+      - name: Engine golden test
+        run: |
+          if [ ! -f engine/tests/run_wasm.mjs ]; then
+            echo "engine tests not present yet — skipping"
+            exit 0
+          fi
+          node engine/tests/run_wasm.mjs \
+            --wasm site/ask/engine.simd.wasm \
+            --golden engine/tests/fixtures/golden.json
+
+      - name: Unit tests
+        run: node --test
+
+      - name: Verify artifact contents
+        run: |
+          test -f site/index.html
+          test -f site/resume.json
+          test -f site/CNAME
+          jq empty site/resume.json
