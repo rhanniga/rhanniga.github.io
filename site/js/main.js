@@ -10,6 +10,8 @@ import { c, sp, link } from "./render/chunk.js";
 import { Terminal } from "./terminal/terminal.js";
 import { ShellMode } from "./terminal/shell-mode.js";
 import { LAYOUT } from "./terminal/metrics.js";
+import { setIdentity } from "./terminal/prompt.js";
+import { resolveIp } from "./identity.js";
 
 /**
  * @param {string} id
@@ -57,3 +59,17 @@ term.start(new ShellMode());
 console.log(
   `[metrics] cols=${term.metrics.cols} cell=${term.metrics.cellWidth.toFixed(3)}px`,
 );
+
+/* Resolve the visitor's IP for the prompt.
+ *
+ * Deliberately not awaited: the terminal is already interactive, and this is the
+ * only third-party request the site makes. It fails silently for anyone running
+ * an ad blocker, leaving the `visitor@` fallback in place.
+ *
+ * Nothing needs re-rendering when it lands. The live line is just `> `, so the
+ * identity first appears on the next committed line -- and lines already in
+ * scrollback keep `visitor@`, which is correct: scrollback records what was true
+ * at the time, and rewriting history would be the actual bug. */
+void resolveIp().then((ip) => {
+  if (ip !== null) setIdentity(ip);
+});

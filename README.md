@@ -75,6 +75,25 @@ codebase with no toolchain. Nothing enforces this in CI; the compensating
 controls are the runtime shape guard in `site/js/data/resume.js`, `jq empty` on
 the JSON, and the tests above.
 
+## Network requests
+
+The site is static and has no backend. It makes exactly two kinds of outbound
+request, both worth knowing about:
+
+1. **The visitor's IP address**, resolved once per page load from
+   `api.ipify.org` (falling back to `icanhazip.com`) so the prompt can read
+   `203.0.113.7@hannigan.sh:~$` instead of `visitor@hannigan.sh:~$`. This is the
+   only third-party request made on load. It is lazy, never on the critical path,
+   sent with no credentials and no referrer, and bounded by a 2.5s timeout. Ad
+   blockers commonly block these endpoints, in which case it fails silently and
+   the prompt keeps `visitor@`. The response is validated as a syntactic IP
+   before being rendered — a rate-limit notice or error page must never reach the
+   prompt.
+2. **The model weights**, ~72 MB, fetched from HuggingFace on the first `ask`
+   only, and never without confirming first. See below.
+
+Nothing else phones home: no analytics, no fonts, no CDN, no service worker.
+
 ## The `ask` command
 
 First invocation downloads ~72 MB of quantized weights (SmolLM2-135M-Instruct,
