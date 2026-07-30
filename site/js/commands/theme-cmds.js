@@ -172,22 +172,85 @@ export const fontCmd = {
   },
 };
 
+/**
+ * What the browser actually resolved, read back from computed style.
+ *
+ * Reporting the *setting* is not the same as reporting the *effect*: the glow
+ * silently failed to render once because it used a CSS feature the engine did not
+ * support, and no amount of "crt: on" would have revealed that. These read the
+ * real computed values so the answer to "is it working" is observable rather than
+ * inferred.
+ *
+ * @returns {{overlay: string, scanlines: boolean, glow: string, colorMix: boolean}}
+ */
+function crtEffects() {
+  const overlay = document.querySelector(".crt");
+  const row = document.querySelector(".row");
+  const colorMix =
+    typeof CSS !== "undefined" && typeof CSS.supports === "function"
+      ? CSS.supports("color", "color-mix(in srgb, red 50%, transparent)")
+      : false;
+
+  let overlayDisplay = "missing";
+  let scanlines = false;
+  if (overlay instanceof HTMLElement) {
+    const cs = getComputedStyle(overlay);
+    overlayDisplay = cs.display;
+    scanlines = cs.backgroundImage !== "none" && cs.backgroundImage !== "";
+  }
+
+  let glow = "no rows on screen";
+  if (row instanceof HTMLElement) {
+    const shadow = getComputedStyle(row).textShadow;
+    glow = shadow === "none" || shadow === "" ? "none" : shadow;
+  }
+
+  return { overlay: overlayDisplay, scanlines, glow, colorMix };
+}
+
 /** @type {Command} */
 export const themeCmd = {
   name: "theme",
   group: "misc",
   summary: "report the current appearance settings",
+  synopsis: [
+    "Reports both the settings and what the browser actually resolved.",
+    "",
+    "The 'glow' row is the computed text-shadow, so if the phosphor effect is",
+    "not rendering, this says so rather than just repeating that crt is on.",
+  ],
   run: (ctx) => {
     const probe = ctx.term.probeFont();
+    const fx = crtEffects();
+    const on = crtEnabled();
+
     /** @type {Array<[string, import('../render/chunk.js').Line]>} */
     const rows = [
       ["palette", [c("Nord", "bright"), c("  (nord0 background, 16-colour ANSI)", "dim")]],
       ["font", [c(currentFont(), "bright")]],
-      ["crt", [crtEnabled() ? c("on", "success") : c("off", "dim")]],
       ["columns", [c(String(ctx.cols))]],
-      ["cell", [c(`${probe.mono ? "monospaced" : "NOT monospaced"}`, probe.mono ? "text" : "error")]],
-      ["rule", [c(GLYPH.RULE === ASCII_RULE ? "ASCII fallback" : "U+2500")]],
+      [
+        "monospaced",
+        [probe.mono ? c("yes", "success") : c("NO — layout will break", "error")],
+      ],
+      ["rule", [c(GLYPH.RULE === ASCII_RULE ? "ASCII fallback (-)" : "U+2500")]],
+      ["crt", [on ? c("on", "success") : c("off", "dim")]],
     ];
+
+    if (on) {
+      rows.push(
+        ["  overlay", [fx.overlay === "block" ? c("shown", "success") : c(fx.overlay, "warn")]],
+        ["  scanlines", [fx.scanlines ? c("painted", "success") : c("NOT painted", "error")]],
+        [
+          "  glow",
+          fx.glow === "none"
+            ? [c("NOT rendering", "error")]
+            : [c(fx.glow, "dim")],
+        ],
+        ["  color-mix", [fx.colorMix ? c("supported", "success") : c("unsupported — using fallback", "warn")]],
+      );
+    }
+
     const width = rows.reduce((m, [k]) => Math.max(m, k.length), 0);
     for (const [key, value] of rows) {
       ctx.out([sp(2), c(key.padEnd(width), "dim"), sp(2), ...value]);

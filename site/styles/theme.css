@@ -195,21 +195,42 @@
     /* vignette */
     radial-gradient(
       ellipse at center,
-      transparent 55%,
-      rgb(46 52 64 / 0.55) 100%
+      transparent 45%,
+      rgb(20 24 32 / 0.65) 100%
     ),
-    /* scanlines: static, never animated */
+    /* Scanlines: static, never animated. A 3px period rather than 2px, because
+     * at 2px on a 2x display the pair lands on 2 device pixels each and the
+     * pattern can alias into a flat wash instead of reading as lines. */
       repeating-linear-gradient(
         to bottom,
-        rgb(0 0 0 / 0.045) 0 1px,
-        transparent 1px 2px
+        rgb(0 0 0 / 0.11) 0 1px,
+        transparent 1px 3px
       );
 }
-/* Phosphor glow. Keep the alpha low -- above ~25% it destroys legibility on
- * 1x displays. */
+/* Phosphor glow: a tight core plus a wide bloom, which is what actually reads as
+ * a CRT. A single 2px shadow is invisible at any alpha low enough to be safe.
+ *
+ * color-mix() rather than `rgb(from currentColor r g b / 18%)`. Relative colour
+ * syntax is the least-supported feature this stylesheet could use, and using
+ * `currentColor` as its origin is the shakiest corner of it -- so the glow simply
+ * did not render. color-mix has been in every engine since 2023 and takes
+ * currentColor without complaint. There is a fixed-colour fallback below for
+ * anything older.
+ *
+ * Deriving from currentColor is the point: each token class glows in its own
+ * hue, which is how phosphor behaves. */
 :root[data-crt="on"] .row,
 :root[data-crt="on"] .inputline {
-  text-shadow: 0 0 2px rgb(from currentColor r g b / 18%);
+  text-shadow:
+    0 0 1px color-mix(in srgb, currentColor 45%, transparent),
+    0 0 8px color-mix(in srgb, currentColor 22%, transparent);
+}
+@supports not (color: color-mix(in srgb, red 50%, transparent)) {
+  /* Fixed nord4-ish glow: does not follow the text colour, but is visible. */
+  :root[data-crt="on"] .row,
+  :root[data-crt="on"] .inputline {
+    text-shadow: 0 0 2px rgb(216 222 233 / 0.3);
+  }
 }
 /* prefers-contrast is about legibility, so it genuinely should kill the glow
  * and the vignette. (prefers-reduced-motion is about movement, and these
