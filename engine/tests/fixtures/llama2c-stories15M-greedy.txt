@@ -1,0 +1,22 @@
+# llama2.c reference output — stories15M, greedy decode
+#
+# Produced by the UNMODIFIED upstream llama2.c, which is the known-good
+# oracle for the engine in this repo. M10 must reproduce this text
+# token-for-token from site/ask/engine.simd.wasm via a converted
+# stories15M-q4.hslm, at temperature 0.
+#
+# upstream:  https://github.com/karpathy/llama2.c @ 350e04f
+# weights:   stories15M.bin  sha256 cd590644d963867a2b6e5a1107f51fad663c41d79c149fbecbbb1f95fa81f49a
+# command:   ./run stories15M.bin -t 0.0 -n 256 -i 'Once upon a time'
+#
+# Reference speed on this machine (fp32, gcc -Ofast, single thread):
+#   15.2M params x 2 FLOP = 30 MFLOP/token @ 839 tok/s = ~25 GFLOP/s
+#   Scaled to SmolLM2-135M (269 MFLOP/token) that predicts ~93 tok/s
+#   native. The plan estimates ~18 tok/s for single-threaded WASM SIMD,
+#   i.e. wasm ~5x slower than native here -- so M10's 'within 3x of
+#   native' bar is measured against THIS machine and may need revising.
+---
+Once upon a time, there was a little girl named Lily. She loved to play outside in the sunshine. One day, she saw a big, red ball in the sky. It was the sun! She thought it was so pretty.
+Lily wanted to play with the ball, but it was too high up in the sky. She tried to jump and reach it, but she couldn't. Then, she had an idea. She would use a stick to knock the ball down.
+Lily found a stick and tried to hit the ball. But the stick was too short. She tried again and again, but she couldn't reach it. She felt sad.
+Suddenly, a kind man came by and saw Lily. He asked her what was wrong. Lily told him about the ball. The man smiled and said, "I have a useful idea!" He took out a long stick and used it to knock the ball down. Lily was so happy! She thanked the man and they played together in the sunshine.
