@@ -58,17 +58,28 @@ export function validateResume(data) {
 }
 
 /**
- * @returns {Promise<Resume>}
+ * Load and validate resume.json.
+ *
+ * Returns the byte count alongside the data because the boot POST reports it, and
+ * it must be the real size of what came over the wire -- re-serialising the parsed
+ * object would give a different (smaller) number and quietly make the banner
+ * wrong.
+ *
+ * @returns {Promise<{resume: Resume, bytes: number}>}
  * @throws {Error} on a network failure, bad JSON, or a shape problem
  */
 export async function loadResume() {
   const res = await fetch(URL_PATH, { cache: "no-cache" });
   if (!res.ok) throw new Error(`HTTP ${res.status} fetching resume.json`);
 
+  // Read as text so the byte length is the file's, then parse.
+  const raw = await res.text();
+  const bytes = new TextEncoder().encode(raw).length;
+
   /** @type {unknown} */
   let data;
   try {
-    data = await res.json();
+    data = JSON.parse(raw);
   } catch (err) {
     throw new Error(`resume.json is not valid JSON: ${String(err)}`);
   }
@@ -78,7 +89,7 @@ export async function loadResume() {
     throw new Error(`resume.json is malformed: ${problems.join("; ")}`);
   }
 
-  return /** @type {Resume} */ (data);
+  return { resume: /** @type {Resume} */ (data), bytes };
 }
 
 /**

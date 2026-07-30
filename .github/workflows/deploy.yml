@@ -60,6 +60,12 @@ jobs:
       - name: Unit tests
         run: node --test
 
+      # Exits nonzero if any semantic colour role drops below its WCAG
+      # threshold. Several Nord colours fail AA on their own, so the mixes in
+      # theme.css are load-bearing rather than decorative.
+      - name: Contrast audit
+        run: node tools/contrast.mjs
+
       # With no build step and no CI type checking, a JSON syntax error would
       # otherwise reach production and blank every resume command. jq is
       # preinstalled on ubuntu-latest.

@@ -2,16 +2,21 @@
 /**
  * Bootstrap.
  *
- * M3 scope: a working shell over the real resume. The boot/POST sequence is M5,
- * `ask` is M6.
+ * M5 scope: the boot sequence and CRT are in. `ask` is M6.
  */
 
-import { c, sp, blank } from "./render/chunk.js";
-import { rule } from "./render/layout.js";
 import { Terminal } from "./terminal/terminal.js";
 import { ShellMode } from "./terminal/shell-mode.js";
 import { History } from "./terminal/history.js";
 import { setIdentity } from "./terminal/prompt.js";
+import {
+  collectFacts,
+  bootLines,
+  revealBoot,
+  readLastLogin,
+  stampLastLogin,
+  powerOn,
+} from "./terminal/boot.js";
 import { buildRegistry } from "./commands/index.js";
 import { applyStoredAppearance } from "./commands/theme-cmds.js";
 import { Env } from "./shell/env.js";
@@ -32,8 +37,9 @@ function must(id) {
 // index.html; this reconciles the font and keeps both in one place.
 applyStoredAppearance();
 
+const root = must("terminal");
 const term = new Terminal({
-  root: must("terminal"),
+  root,
   viewport: must("viewport"),
   output: must("output"),
   inputline: must("inputline"),
@@ -41,18 +47,22 @@ const term = new Terminal({
   probe: must("metrics"),
 });
 
+powerOn(root);
+
 /* ── Resume data ─────────────────────────────────────────────────────────
- * Awaited before the first prompt, but the fetch is 6 KB from the same origin,
- * so it resolves faster than the eye. From M5 the boot sequence covers it
- * outright and reports the real byte count as it lands.
- *
  * A failure must not produce a white screen: the shell comes up either way, the
- * resume commands report honestly, and everything else keeps working. */
+ * resume commands report honestly, and everything else keeps working. The boot
+ * sequence reports the real byte count as it lands, which is why it is measured
+ * here rather than assumed. */
 let resume = emptyResume();
 /** @type {string | null} */
 let loadError = null;
+/** @type {number | null} */
+let resumeBytes = null;
 try {
-  resume = await loadResume();
+  const loaded = await loadResume();
+  resume = loaded.resume;
+  resumeBytes = loaded.bytes;
 } catch (err) {
   loadError = err instanceof Error ? err.message : String(err);
   console.error("[resume]", err);
@@ -60,41 +70,35 @@ try {
 
 /* ── Banner ─────────────────────────────────────────────────────────────── */
 
-function motd() {
-  const w = term.writer;
-  const cols = term.metrics.cols;
+const { previous, deployed } = readLastLogin();
 
-  w.row([c("hannigan.sh", "heading")]);
-  w.row(rule(cols));
-  w.row(blank);
-
-  if (loadError !== null) {
-    // Terminal-authentic failure rather than a blank section or a modal.
-    w.row([c("bash: resume.json: No such file or directory", "error")]);
-    w.row([sp(2), c("the resume data failed to load; shell commands still work", "dim")]);
-    w.row([sp(2), c(loadError, "dim")]);
-  } else {
-    w.row([c(resume.contactInfo.name, "bright")]);
-    const first = resume.summaries[0];
-    if (first !== undefined) {
-      const short = first.text.split(". ")[0] ?? "";
-      w.row([c(short + ".", "dim")]);
-    }
-  }
-
-  w.row(blank);
-  w.row([
-    c("Type "),
-    c("help", "bright"),
-    c(" for commands, or start with "),
-    c("summary", "bright"),
-    c("."),
-  ]);
-  w.row(blank);
-  w.flush();
+/** Built fresh each time so it reflects the current width and settings. */
+function buildBanner() {
+  return bootLines({
+    cols: term.metrics.cols,
+    facts: collectFacts({
+      resumeBytes,
+      crtOn: document.documentElement.dataset.crt === "on",
+    }),
+    previousVisit: previous,
+    deployed,
+    name: loadError === null ? resume.contactInfo.name : "",
+    tagline:
+      loadError === null
+        ? "software engineer, postdoctoral fellow, lecturer"
+        : "",
+    error: loadError,
+  });
 }
 
-motd();
+/** `motd` reprints instantly -- no staging, since it is an explicit request. */
+function motd() {
+  term.writer.rows(buildBanner());
+  term.writer.flush();
+}
+
+await revealBoot(term.writer, buildBanner());
+stampLastLogin();
 
 /* ── Shell ──────────────────────────────────────────────────────────────── */
 

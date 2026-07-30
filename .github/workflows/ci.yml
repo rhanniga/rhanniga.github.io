@@ -39,6 +39,12 @@ jobs:
       - name: Unit tests
         run: node --test
 
+      # Exits nonzero if any semantic colour role drops below its WCAG
+      # threshold. Several Nord colours fail AA on their own, so the mixes in
+      # theme.css are load-bearing rather than decorative.
+      - name: Contrast audit
+        run: node tools/contrast.mjs
+
       - name: Verify artifact contents
         run: |
           test -f site/index.html

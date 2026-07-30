@@ -86,6 +86,34 @@ body {
   scrollbar-color: var(--nord3) transparent;
 }
 
+/* ── CRT power-on flash ─────────────────────────────────────────────────
+ * One shot, on load. Opacity and filter ONLY -- deliberately no transform.
+ * Scaling the terminal would change its layout width mid-animation, and the
+ * column count is measured from that width, so the entire grid would be computed
+ * against a transient size. Gated on the CRT setting and skipped under
+ * prefers-reduced-motion by boot.js, which sets the attribute. */
+@keyframes power-on {
+  from {
+    opacity: 0;
+    filter: brightness(2.4) contrast(1.4);
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    filter: brightness(1) contrast(1);
+  }
+}
+#terminal[data-power-on="1"] {
+  animation: power-on 180ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  #terminal[data-power-on="1"] {
+    animation: none;
+  }
+}
+
 /* ── Output rows ──────────────────────────────────────────────────────── */
 .output {
   /* Chrome's scroll anchoring otherwise fights programmatic scroll during

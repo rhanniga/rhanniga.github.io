@@ -56,6 +56,11 @@ export class ModeStack {
     return this.#stack.length;
   }
 
+  /** True before start() installs the first mode, i.e. during the boot reveal. */
+  get isEmpty() {
+    return this.#stack.length === 0;
+  }
+
   /**
    * The active mode.
    * @returns {TerminalMode}

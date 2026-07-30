@@ -37,16 +37,18 @@
   --rule: var(--nord3); /* 1.69:1 -- borders ONLY, never text */
 
   /* ── Text ─────────────────────────────────────────────────────────────
-   * Measured WCAG contrast against --bg (nord0 #2E3440):
-   *   nord6  11.0:1   nord4  9.25:1   nord13 7.9:1   nord8  6.24:1
+   * WCAG contrast against --bg (nord0 #2E3440), measured -- run
+   * `node tools/contrast.mjs` to re-verify after any palette change:
+   *   nord6  10.84:1  nord4  9.25:1   nord13 8.00:1  nord8  6.24:1
    *   nord14 6.13:1   nord7  5.99:1   nord9  4.64:1  nord15 4.41:1
-   *   nord12 4.39:1   nord11 3.05:1   nord10 3.10:1  nord3  1.69:1
-   * Anything below 4.5:1 fails AA for normal-size text, which is why the two
-   * mixes below exist. */
+   *   nord12 4.39:1   nord10 3.10:1   nord11 3.05:1  nord3  1.69:1
+   * Everything from nord15 down FAILS the 4.5:1 AA threshold for normal-size
+   * text, which is what the mixes below are for. */
   --fg: var(--nord4); /* 9.25:1 */
-  --fg-bright: var(--nord6); /* 11.0:1 */
+  --fg-bright: var(--nord6); /* 10.84:1 */
 
-  /* Dim text: 62% nord4 toward nord0 ~= 4.59:1. DO NOT go below 60%.
+  /* Dim text: 62% nord4 toward nord0 = 4.59:1. 62% is the FLOOR, not a
+   * suggestion -- 60% measures 4.42:1 and fails.
    * The tempting `--fg-dim: var(--nord3)` is 1.69:1 -- effectively invisible.
    * That is the mistake nearly every Nord terminal theme makes, and here it
    * would render locations, `ls -l` metadata, and JSON punctuation unreadable. */
@@ -55,10 +57,15 @@
   /* ── Roles ────────────────────────────────────────────────────────── */
   --heading: var(--nord8); /* 6.24:1 */
   --subheading: var(--nord7); /* 5.99:1 */
-  --accent: var(--nord15); /* 4.41:1 -- dates/metadata only */
   --keyword: var(--nord8); /* not bold: bolding every keyword ruins a paragraph */
-  --success: var(--nord14);
-  --warn: var(--nord12); /* 4.39:1 -- marginal, warnings only */
+  --success: var(--nord14); /* 6.13:1 */
+
+  /* Raw nord15 is 4.41:1 and raw nord12 is 4.39:1 -- both just under AA. Dates
+   * are content a recruiter reads and warnings are content that matters, so
+   * neither gets to be "close enough". 96% toward nord6 clears 4.5:1 (4.60 and
+   * 4.56) and is visually indistinguishable from the raw hue. */
+  --accent: color-mix(in srgb, var(--nord15) 96%, var(--nord6)); /* 4.60:1 */
+  --warn: color-mix(in srgb, var(--nord12) 96%, var(--nord6)); /* 4.56:1 */
 
   /* Error: pure nord11 is 3.05:1 and fails for body text. Keep it for the
    * marker/prefix; use the lightened mix (~4.60:1) for the message itself. */
@@ -74,7 +81,9 @@
   --prompt-user: var(--nord14);
   --prompt-path: var(--nord9);
   --prompt-sigil: var(--nord4);
-  --prompt-repl: var(--nord15);
+  /* Shares the accent hue deliberately -- and therefore its AA correction, since
+   * raw nord15 is 4.41:1 and this is prompt text a user reads. */
+  --prompt-repl: var(--accent);
   /* The live line's chevron. nord8 at 6.24:1 -- the brightest accent available,
    * which suits the one element that should draw the eye. */
   --prompt-chevron: var(--nord8);

@@ -188,7 +188,9 @@ export class Terminal {
   /* ── Rendering the input line ────────────────────────────────────────── */
 
   renderInput() {
-    if (this.#dead) {
+    // Nothing to render before start() installs a mode -- which is the case
+    // throughout the boot reveal.
+    if (this.#dead || this.#modes.isEmpty) {
       this.#inputline.hidden = true;
       return;
     }
@@ -356,6 +358,7 @@ export class Terminal {
    * @param {string} text
    */
   #insert(text) {
+    if (this.#dead || this.#modes.isEmpty) return;
     this.#pokeCursor();
     void this.#modes.top().onInsertText(text, {
       term: this.api,
@@ -371,6 +374,9 @@ export class Terminal {
     if (ev.metaKey) return;
     // After `exit`, selection and copy still work but nothing is interactive.
     if (this.#dead) return;
+    // During the boot reveal there is no mode yet; boot.js owns the skip
+    // listener, so keys here are simply not ours.
+    if (this.#modes.isEmpty) return;
 
     const k = normalize(ev);
 
