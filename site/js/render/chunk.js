@@ -22,7 +22,8 @@ import { width } from "../util.js";
  * @typedef {'text'|'dim'|'bright'|'heading'|'subheading'|'accent'|'keyword'
  *          |'error'|'warn'|'success'|'link'|'rule'
  *          |'json-key'|'json-string'|'json-number'|'json-punct'
- *          |'prompt-user'|'prompt-path'|'prompt-sigil'|'prompt-repl'} TokenClass
+ *          |'prompt-user'|'prompt-path'|'prompt-sigil'|'prompt-repl'
+ *          |'prompt-chevron'} TokenClass
  */
 
 /**

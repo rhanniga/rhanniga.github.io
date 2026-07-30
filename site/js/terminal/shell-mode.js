@@ -10,7 +10,7 @@
 
 import { c } from "../render/chunk.js";
 import { LineBuffer } from "./line-buffer.js";
-import { ps1 } from "./prompt.js";
+import { inputPrompt, echoPrompt } from "./prompt.js";
 
 /** @typedef {import('./modes.js').TerminalMode} TerminalMode */
 /** @typedef {import('./modes.js').ModeContext} ModeContext */
@@ -24,7 +24,7 @@ export class ShellMode {
   buffer = new LineBuffer();
 
   prompt() {
-    return ps1();
+    return inputPrompt();
   }
 
   /**
@@ -70,7 +70,7 @@ export class ShellMode {
       case "interrupt":
         // A real shell echoes ^C, abandons the line, and gives you a fresh
         // prompt -- it does not erase what you had typed from the screen.
-        ctx.out.row([...ps1(), c(b.value), c("^C", "dim")]);
+        ctx.out.row([...echoPrompt(), c(b.value), c("^C", "dim")]);
         b.clear();
         break;
 
@@ -79,7 +79,7 @@ export class ShellMode {
         // delete-forward. Matching this is the difference between muscle memory
         // working and not.
         if (b.isEmpty) {
-          ctx.out.row([...ps1(), c("logout", "dim")]);
+          ctx.out.row([...echoPrompt(), c("logout", "dim")]);
         } else {
           b.deleteForward();
         }
@@ -109,9 +109,10 @@ export class ShellMode {
     const line = this.buffer.value;
     this.buffer.clear();
 
-    // Commit the prompt + what was typed as a permanent row, exactly as a
-    // terminal leaves the submitted line on screen.
-    ctx.out.row([...ps1(), c(line)]);
+    // Commit the full prompt + what was typed as a permanent row, exactly as a
+    // terminal leaves the submitted line on screen. Scrollback gets the long
+    // user@host:cwd$ form; only the live line uses the short chevron.
+    ctx.out.row([...echoPrompt(), c(line)]);
 
     const trimmed = line.trim();
     if (trimmed === "") return;

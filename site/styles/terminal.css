@@ -130,11 +130,46 @@ body {
   color: var(--link-hover);
 }
 
-/* ── Input line ───────────────────────────────────────────────────────── */
+/* ── Input line ─────────────────────────────────────────────────────────
+ * Given an accent treatment so the line being typed on is unmistakable against
+ * a screen full of scrollback. The negative margins bleed the tint to the
+ * viewport edges while the compensating padding keeps the text on exactly the
+ * same left column as the output rows above -- emphasis without indentation,
+ * which is the entire point. */
 .inputline {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   min-height: var(--line-height);
+
+  position: relative;
+  background: var(--bg-alt);
+  border-left: 2px solid var(--prompt-chevron);
+  margin-inline: calc(-1 * var(--pad));
+  padding-left: calc(var(--pad) - 2px);
+  padding-right: var(--pad);
+  padding-block: 2px;
+  transition: background-color 120ms linear, border-color 120ms linear;
+}
+
+/* Unfocused, the emphasis recedes -- it marks where input *would* go, and
+ * claiming otherwise while the keyboard is elsewhere would be a lie. Pairs with
+ * the cursor going hollow. */
+#terminal[data-focused="false"] .inputline {
+  background: transparent;
+  border-left-color: var(--rule);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inputline {
+    transition: none;
+  }
+}
+/* The tint is decoration, not information: at high contrast the border alone
+ * carries the emphasis. */
+@media (prefers-contrast: more) {
+  .inputline {
+    background: transparent;
+  }
 }
 
 .cursor {

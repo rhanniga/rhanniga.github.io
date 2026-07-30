@@ -75,6 +75,9 @@
   --prompt-path: var(--nord9);
   --prompt-sigil: var(--nord4);
   --prompt-repl: var(--nord15);
+  /* The live line's chevron. nord8 at 6.24:1 -- the brightest accent available,
+   * which suits the one element that should draw the eye. */
+  --prompt-chevron: var(--nord8);
 
   --cursor-bg: var(--nord4);
   --cursor-fg: var(--nord0);
@@ -135,6 +138,9 @@
 }
 .tk-prompt-sigil {
   color: var(--prompt-sigil);
+}
+.tk-prompt-chevron {
+  color: var(--prompt-chevron);
 }
 /* A different hue IS the mode indicator -- this is what tells you at a glance
  * that you are inside `ask -i` and not at the shell. */
