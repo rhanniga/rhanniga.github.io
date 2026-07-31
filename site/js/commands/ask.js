@@ -17,6 +17,8 @@ import { History } from "../terminal/history.js";
 import { askPrompt } from "../terminal/prompt.js";
 import { parseFlags, invalidOptionMessage } from "../shell/flags.js";
 import { resolveEngine, hasSimd } from "../llm/engine.js";
+import { isContactQuestion, redactWord } from "../llm/guard.js";
+import { formatContact } from "../render/format.js";
 import { EXIT } from "../shell/env.js";
 
 /** @typedef {import('../shell/registry.js').Command} Command */
@@ -186,7 +188,14 @@ async function streamAnswer(ctx, engine, question) {
   // re-wrapping the whole buffer per token would make already-visible text reflow
   // as the answer grows.
   const width = Math.min(MAX_ANSWER_WIDTH, Math.max(20, ctx.cols));
-  const wrap = streamWrapper((s) => ctx.term.write(s), { width, indent: 2 });
+  // redactWord runs on each word as whitespace confirms it, so a fabricated
+  // phone number never reaches the screen at all. Measured behaviour, not a
+  // precaution: asked for a phone number the model answered "1-800-234-9675".
+  const wrap = streamWrapper((s) => ctx.term.write(s), {
+    width,
+    indent: 2,
+    transform: redactWord,
+  });
   let first = true;
 
   try {
@@ -311,6 +320,8 @@ export const askCmd = {
       return EXIT.USAGE;
     }
 
+    if (answerContactDeterministically(ctx, question)) return EXIT.OK;
+
     const loaded = await ensureLoaded(ctx, engine);
     if (loaded === "declined") return EXIT.OK;
     if (loaded === "aborted") {
@@ -321,6 +332,32 @@ export const askCmd = {
     return streamAnswer(ctx, engine, question);
   },
 };
+
+/**
+ * Answer a contact question without involving the model.
+ *
+ * The phone number and email are deliberately absent from the system prompt, and
+ * that turns out not to be enough: asked for a phone number, the quantized model
+ * answered `1-800-234-9675` -- fabricated, confident, and quite possibly somebody
+ * else's line. A wrong number sent to a recruiter is worse than no number.
+ *
+ * So contact questions never reach the model. This is also simply better: it is
+ * instant, and it is right.
+ *
+ * @param {CommandContext} ctx
+ * @param {string} question
+ * @returns {boolean} whether it was handled here
+ */
+function answerContactDeterministically(ctx, question) {
+  if (!isContactQuestion(question)) return false;
+  ctx.out([
+    c("ask: ", "dim"),
+    c("contact details come from the resume, not the model", "dim"),
+  ]);
+  ctx.out(blank);
+  ctx.rows(formatContact(ctx.resume, ctx.cols));
+  return true;
+}
 
 /**
  * Push the `ask -i` sub-REPL.
@@ -395,6 +432,9 @@ function startRepl(ctx, engine) {
 
       void (async () => {
         try {
+          // Same guard as the one-shot path. Without this, `ask -i` would be a
+          // way around it.
+          if (answerContactDeterministically(sub, line)) return;
           const loaded = await ensureLoaded(sub, engine);
           if (loaded === "ready") await streamAnswer(sub, engine, line);
           else if (loaded === "aborted") sub.out([c("^C", "dim")]);

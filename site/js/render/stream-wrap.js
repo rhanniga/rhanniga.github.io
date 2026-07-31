@@ -21,20 +21,29 @@
 
 /**
  * @param {(text: string) => void} write
- * @param {{ width: number, indent?: number }} opts
+ * @param {object} opts
+ * @param {number} opts.width
+ * @param {number} [opts.indent]
+ * @param {(word: string) => string} [opts.transform]
+ *   Applied to each word once whitespace confirms it, before anything is written.
+ *   This is where output filtering belongs: because words are already held until
+ *   complete, a fabricated phone number is caught before any of it reaches the
+ *   screen rather than having to be un-printed afterwards.
  * @returns {StreamWrapper}
  */
 export function streamWrapper(write, opts) {
   const indent = opts.indent ?? 0;
   const width = Math.max(indent + 8, opts.width);
+  const transform = opts.transform;
   const pad = " ".repeat(indent);
 
   let col = 0;
   let pending = "";
   let started = false;
 
-  /** @param {string} word */
-  const emit = (word) => {
+  /** @param {string} raw */
+  const emit = (raw) => {
+    const word = transform === undefined ? raw : transform(raw);
     if (word === "") return;
     if (!started) {
       write(pad);
