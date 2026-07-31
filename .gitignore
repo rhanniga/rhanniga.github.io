@@ -16,6 +16,10 @@ __pycache__/
 
 # Native engine build output
 engine/engine
+engine/engine-trace
+engine/engine-asan
+engine/engine-debug
+engine/tests/test_matmul
 engine/*.o
 
 .DS_Store
