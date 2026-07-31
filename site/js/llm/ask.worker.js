@@ -22,6 +22,7 @@ import {
   TOKENIZER_URL,
   N_CTX,
   SAMPLING,
+  setModelBaseUrl,
 } from "./config.js";
 import { hasSimd } from "./capabilities.js";
 import { SYSTEM_PROMPT_IDS } from "./prompt.js";
@@ -41,9 +42,13 @@ function post(msg) {
 }
 
 /**
- * @param {{signal?: AbortSignal, nCtx?: number}} opts
+ * @param {{signal?: AbortSignal, nCtx?: number, modelBase?: string}} opts
  */
 async function load(opts) {
+  // The main thread resolved this: only it can see `?model=`, because a worker's
+  // `location` is its own script URL and carries no query string.
+  if (opts.modelBase !== undefined) setModelBaseUrl(opts.modelBase);
+
   // 0 means "whatever config says". A constrained device passes 512, which halves
   // the KV cache from 47 MB to 24 MB -- the difference between running and being
   // killed on an older iPhone.
@@ -153,7 +158,11 @@ self.onmessage = async (ev) => {
     case "load": {
       loadController = new AbortController();
       try {
-        await load({ signal: loadController.signal, nCtx: msg.nCtx });
+        await load({
+          signal: loadController.signal,
+          nCtx: msg.nCtx,
+          modelBase: msg.modelBase,
+        });
       } catch (err) {
         const name = /** @type {any} */ (err)?.name;
         post({

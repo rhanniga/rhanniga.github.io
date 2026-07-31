@@ -19,6 +19,25 @@ Then open <http://localhost:8000>.
 no watch process, no dev server, and no HMR — edit a file and hit reload. That
 immediacy is the whole point of the stack.
 
+`ask` needs two build outputs that are not in git: the wasm module and the
+weights.
+
+```sh
+make -C engine wasm wasm-scalar                                  # -> site/ask/
+tools/.venv/bin/python tools/convert.py --quant hybrid -o m.hslm  # the shipped model
+python3 tools/shard.py m.hslm --out site/model/
+```
+
+With those present, `ask` runs the real model locally. Without them it falls back
+to a synthetic mock engine so the rest of the site can be developed on a bare
+checkout — and it says so under every answer. The choice is made by probing for
+`site/model/manifest.json`, so it follows what is actually on disk; `?ask=mock`
+and `?ask=real` force either one.
+
+Two useful query parameters while developing: `?model=<url>` points the shard
+fetch somewhere else (`?model=hf:` for the HuggingFace copy), and `?plain=1`
+renders the semantic HTML resume.
+
 ## Editing the resume
 
 Everything lives in [`site/resume.json`](site/resume.json), which is fetched at
@@ -89,8 +108,10 @@ request, both worth knowing about:
    the prompt keeps `visitor@`. The response is validated as a syntactic IP
    before being rendered — a rate-limit notice or error page must never reach the
    prompt.
-2. **The model weights**, ~83 MB, fetched from HuggingFace on the first `ask`
-   only, and never without confirming first. See below.
+2. **The model weights**, ~83 MB, fetched on the first `ask` only, and never
+   without confirming first. Served from this origin by default, so this is not a
+   third-party request; `site/js/llm/config.js` can point it at the HuggingFace
+   copy instead with a one-constant change. See below.
 
 Nothing else phones home: no analytics, no fonts, no CDN, no service worker.
 

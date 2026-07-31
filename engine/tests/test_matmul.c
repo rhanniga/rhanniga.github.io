@@ -355,12 +355,71 @@ static void test_expf(void) {
     check(worst < ranges[r].limit, ranges[r].what);
   }
 
+  /* The subnormal window, which the two ranges above walk straight past.
+   *
+   * expf's result goes subnormal at x = -87.34 and only reaches zero at -103.97, and
+   * everything in between used to come back LARGE -- exp(-103.9) was 7.9e31 -- because
+   * the exponent field was written from a negative integer. Nothing above catches it:
+   * [-40, 40] stops short of the window and "expf(-1000) flushes to zero" starts
+   * past it. `ask` walked right into it, because dividing the logits by temperature
+   * 0.4 puts softmax's arguments three times further from the max.
+   *
+   * What is asserted here is not accuracy. A subnormal has too few mantissa bits to be
+   * accurate about, and libm itself is only near-correctly-rounded down here. It is
+   * SIGN, MAGNITUDE and MONOTONICITY: exp is never negative, exp of a large negative
+   * number is tiny, and it never grows as its argument shrinks. All three were
+   * violated, and the sign is the one worth naming first -- the shift set the sign bit,
+   * so exp(-103.9) was -8.7e31, and a bound written as `got <= 1.9e-35` would have
+   * called that a pass. */
+  {
+    int negative = 0, not_monotone = 0, too_large = 0, off = 0;
+    double worst = 0.0;
+    float worst_at = 0.0f;
+    float prev = hslm_expf(-80.0f);
+    for (double x = -80.01; x >= -110.0; x -= 0.01) {
+      const float got = hslm_expf((float)x);
+      const float want = expf((float)x);
+      if (got < 0.0f) negative++;
+      if (got > prev) not_monotone++;
+      prev = got;
+      /* exp(-80) is already 1.8e-35, so nothing in this window may exceed it in
+       * MAGNITUDE -- signed, a wrong answer can be arbitrarily far below the bound. */
+      if (!(fabsf(got) <= 1.9e-35f)) too_large++;
+      /* Absolute, not relative: 4 subnormal ulps plus a slack proportional to the
+       * value itself, which is the only tolerance that means anything below FLT_MIN. */
+      const double tol = 4 * 1.4012985e-45 + 1e-5 * (double)want;
+      const double err = fabs((double)got - (double)want);
+      if (err > tol) off++;
+      /* Reported as a fraction of the tolerance, not as an absolute number: the
+       * values here span 1.8e-35 down to 1e-45, so a raw worst-case would only ever
+       * report the top of the range and say nothing about the subnormals. */
+      if (err / tol > worst) { worst = err / tol; worst_at = (float)x; }
+    }
+    printf("    [-110.0, -80.0] worst %.2f of tolerance at x = %.3f (subnormal window)\n",
+           worst, worst_at);
+    check(negative == 0, "never negative across the subnormal window");
+    check(not_monotone == 0, "monotonically non-increasing across the subnormal window");
+    check(too_large == 0, "never exceeds exp(-80) in magnitude anywhere below -80");
+    check(off == 0, "within 4 subnormal ulps of libm across the subnormal window");
+  }
+
   /* Edge cases the engine actually hits: softmax subtracts the max so x <= 0, and
    * SiLU evaluates expf(-v) for v of either sign. */
   check(hslm_expf(0.0f) == 1.0f, "expf(0) is exactly 1");
   check(hslm_expf(-1000.0f) == 0.0f, "large negative flushes to zero");
   check(hslm_expf(1000.0f) > 1e30f, "large positive overflows to inf");
   check(hslm_expf(-0.0f) == 1.0f, "expf(-0) is 1");
+  /* Spot checks either side of the exponent-field boundaries, named explicitly so a
+   * regression reads as "the subnormal window is broken again" rather than as a
+   * statistic. */
+  check(hslm_expf(-88.0f) > 0.0f && hslm_expf(-88.0f) < 1e-38f,
+        "expf(-88) is a small subnormal, not a large number");
+  check(hslm_expf(-103.0f) > 0.0f && hslm_expf(-103.0f) < 1e-44f,
+        "expf(-103) is the smallest kind of subnormal");
+  /* The top clamp writes 255 into the exponent field if the scale is applied in one
+   * step, so the largest in-range argument must still come back finite. */
+  check(isfinite(hslm_expf(88.7228f)) && hslm_expf(88.7228f) > 3.0e38f,
+        "expf at the overflow boundary stays finite");
   /* NaN must propagate rather than becoming a number. */
   const float nan = 0.0f / 0.0f;
   check(hslm_expf(nan) != hslm_expf(nan), "NaN propagates");

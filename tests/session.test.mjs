@@ -90,9 +90,42 @@ function boot(opts = {}) {
       nCtx: N_CTX,
       sampling: { ...SAMPLING, temperature: opts.temperature ?? 0 },
     });
-    return { engine, session, manifest, prefillMs: Date.now() - t0 };
+    return { engine, session, tokenizer, manifest, prefillMs: Date.now() - t0 };
   })();
   return shared;
+}
+
+/**
+ * A second session on the shared engine, at a caller-chosen sampling config.
+ *
+ * The tests above all decode greedily, which is reproducible and was the right default
+ * -- but `ask` ships temperature 0.4, and temperature is a completely separate code path
+ * through ml_sample: it divides the logits, softmaxes them, and takes a top-k/top-p
+ * draw, none of which greedy decoding touches. That path was broken for the entire life
+ * of the engine and every test here passed, because none of them ever set a temperature.
+ *
+ * Memoised per config, since each one pays another ~4 s prefill.
+ * @type {Map<string, Promise<any>>}
+ */
+const sessions = new Map();
+
+/** @param {Record<string, number>} sampling */
+function bootWith(sampling) {
+  const key = JSON.stringify(sampling);
+  const existing = sessions.get(key);
+  if (existing !== undefined) return existing;
+  const made = (async () => {
+    const { engine, tokenizer } = await boot();
+    return await createSession({
+      engine,
+      tokenizer,
+      systemIds: SYSTEM_PROMPT_IDS,
+      nCtx: N_CTX,
+      sampling: /** @type {any} */ (sampling),
+    });
+  })();
+  sessions.set(key, made);
+  return made;
 }
 
 /**
@@ -157,6 +190,67 @@ test("generation is deterministic at temperature 0", { skip }, async () => {
   session.reset();
   const again = await answer(session, q);
   assert.equal(again.text, first.text);
+});
+
+test("temperature sampling with topK=1 is exactly greedy decoding", { skip }, async () => {
+  // The sharpest available test of the temperature path, and it is not statistical.
+  // topK=1 leaves one token above the cutoff, so whatever the RNG draws, the only token
+  // that can be chosen is the argmax -- which means this must reproduce temperature-0
+  // output character for character, while still exercising the divide, the softmax and
+  // the top-k/top-p walk that greedy decoding skips entirely.
+  //
+  // This is the test that catches the bug it was written for. hslm_expf returned a large
+  // NEGATIVE number for arguments in exp's subnormal window, which softmax reaches
+  // routinely once the logits are divided by 0.4. That made the sum of exponentials
+  // negative, which flipped every sign on normalisation, which promoted ~40 junk tail
+  // tokens above the real answer. `ask` replied "R" and stopped.
+  const q = "Where did Ryan get his PhD?";
+  const { session: greedySession } = await boot();
+  const greedy = await answer(greedySession, q);
+
+  const sampled = await bootWith({ ...SAMPLING, temperature: 0.4, topK: 1 });
+  const forced = await answer(sampled, q);
+
+  assert.equal(forced.text, greedy.text);
+});
+
+test("the shipped sampling config answers coherently", { skip }, async () => {
+  // Sampling, so this cannot assert an exact string -- but it can assert that the
+  // answers are answers. Under the expf bug these three came back as "R",
+  // "Dremeteriesighsystem" and "MetaInfo knows theομαι, but
+  // not...": 14 tokens across all three, every one of them stopping almost
+  // immediately because a junk token outranked the real distribution.
+  const session = await bootWith({ ...SAMPLING });
+  const questions = [
+    "Where has Ryan worked?",
+    "What did he do at CERN?",
+    "What programming languages does he know?",
+  ];
+
+  let total = 0;
+  const texts = [];
+  for (const q of questions) {
+    const { text, result } = await answer(session, q);
+    total += result.tokens;
+    texts.push(text);
+    // Four tokens is not an answer to any of these, and every failure mode observed
+    // stopped inside the first ten.
+    assert.ok(result.tokens > 10, `"${q}" produced ${result.tokens} tokens: ${text}`);
+    assert.ok(
+      result.reason === "eos" || result.reason === "maxTokens",
+      `"${q}" stopped because ${result.reason}`,
+    );
+  }
+  assert.ok(total > 60, `${total} tokens across three questions is not coherent output`);
+
+  // At least two of the three should land on something from the resume. Asserting all
+  // three would be betting on a 135M model at temperature 0.4; asserting none would be
+  // testing nothing.
+  const grounded = texts.filter((t) => /CERN|Texas|Python|C\+\+|ALICE|physics/i.test(t));
+  assert.ok(
+    grounded.length >= 2,
+    `only ${grounded.length}/3 answers mentioned anything from the resume:\n${texts.join("\n---\n")}`,
+  );
 });
 
 test("aborting mid-generation throws AbortError and keeps partial text", { skip }, async () => {
@@ -239,6 +333,10 @@ test("the session closes without leaking its yield channel", { skip }, async () 
   // one per session. If this file hangs after the last test, this is why.
   const { engine, session } = await boot();
   session.close();
+  // The temperature sessions share this engine and each hold their own channel, so
+  // they have to go too -- and they run before this test, so they are safe to close.
+  for (const pending of sessions.values()) (await pending).close();
+  sessions.clear();
   engine.shutdown();
   shared = null;
 });

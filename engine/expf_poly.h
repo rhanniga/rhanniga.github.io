@@ -49,12 +49,40 @@ static inline float hslm_expf(float x) {
                           r * (0.0013333558146429f +
                                r * 0.0001540353039338f)))));
 
-  /* Scale by 2^n by writing the exponent field directly. n is bounded by the
-   * clamps above, so 127+n always lands in [1, 254] and never produces a
-   * subnormal or an infinity by accident. */
-  union { uint32_t u; float f; } scale;
-  scale.u = (uint32_t)((127 + n) << 23);
-  return p * scale.f;
+  /* Scale by 2^n by writing the exponent field directly.
+   *
+   * The comment here used to claim that the clamps above kept 127+n inside [1, 254].
+   * They do not, and the gap between what it claimed and what it did was the worst
+   * bug in the engine. expf's result goes subnormal below x = -87.34 and only flushes
+   * to zero at -103.97, so for x in that window n reaches -150 and 127+n goes
+   * NEGATIVE -- a left shift of a negative int, which is undefined behaviour, and
+   * which clang compiled into a shift of the two's-complement pattern. exp(-103.9)
+   * came back as 7.9e31 instead of 1e-45.
+   *
+   * That window is not exotic. softmax subtracts the max and `ask` divides the logits
+   * by temperature 0.4 first, so over a 49k vocabulary x-max reaches -103 on an
+   * ordinary question. Roughly forty tail tokens came back as the most probable in the
+   * vocabulary, which pushed the real answer below the top-k cutoff. The symptom was
+   * `ask` replying with a single letter and stopping -- and it was invisible at
+   * temperature 0, which takes the argmax and never calls expf at all, so every golden
+   * test passed.
+   *
+   * So the scale is applied in two steps whenever one exponent field cannot hold it.
+   * n is bounded by the clamps above to [-150, 128], which leaves both halves in
+   * range, and multiplying in this order (p * s1 first) keeps the top of the range
+   * finite: exp(88.7228) lands on 3.4e38 rather than overflowing to inf. */
+  int hi = n, lo = 0;
+  if (hi > 127) {
+    lo = hi - 127;
+    hi = 127;
+  } else if (hi < -126) {
+    lo = hi + 126;
+    hi = -126;
+  }
+  union { uint32_t u; float f; } s_hi, s_lo;
+  s_hi.u = (uint32_t)((127 + hi) << 23);
+  s_lo.u = (uint32_t)((127 + lo) << 23);
+  return p * s_hi.f * s_lo.f;
 }
 
 #endif /* HSLM_EXPF_POLY_H */

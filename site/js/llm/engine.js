@@ -8,7 +8,7 @@
  * (EX_UNAVAILABLE), and everything else about the site keeps working.
  */
 
-import { MODEL_BASE_URL } from "./config.js";
+import { shardUrl } from "./config.js";
 import { createMockEngine } from "./mock-engine.js";
 import { createWorkerEngine } from "./client.js";
 import { hasWasm, hasSimd } from "./capabilities.js";
@@ -16,33 +16,47 @@ import { hasWasm, hasSimd } from "./capabilities.js";
 /** @typedef {import('./types.js').AskEngine} AskEngine */
 
 /**
- * The model manifest, which is what "is the model deployed?" actually means. The
- * wasm build is separate and much smaller; without weights there is nothing to run.
- */
-const MANIFEST_URL = (() => {
-  const base = MODEL_BASE_URL;
-  return base.endsWith("/") ? base + "manifest.json" : `${base}/manifest.json`;
-})();
-
-/**
  * @typedef {{ok: true, engine: AskEngine} | {ok: false, reason: string, code: 'not-deployed'|'no-wasm'}} EngineResult
  */
 
 /**
- * Should the synthetic engine be used?
+ * Which engine did the URL ask for, if it asked at all?
  *
- * Explicit `?ask=mock` wins, then localhost by default -- so development does not
- * need a 72 MB download, and `?ask=real` still forces the real path locally when
- * that is what you are testing.
+ * `?ask=mock` forces the synthetic engine and `?ask=real` forces the worker; neither
+ * is set in normal use.
  *
- * @returns {boolean}
+ * @returns {'mock'|'real'|null}
  */
-export function useMock() {
-  const params = new URLSearchParams(location.search);
-  const asked = params.get("ask");
-  if (asked === "mock") return true;
-  if (asked === "real") return false;
+export function askOverride() {
+  const asked = new URLSearchParams(location.search).get("ask");
+  return asked === "mock" || asked === "real" ? asked : null;
+}
+
+/** @returns {boolean} */
+function isLocalhost() {
   return location.hostname === "localhost" || location.hostname === "127.0.0.1";
+}
+
+/**
+ * Is the model actually there?
+ *
+ * The manifest is what "deployed" means -- the wasm build is separate and much
+ * smaller, and without weights there is nothing to run. Probed rather than assumed,
+ * with HEAD to keep it cheap, and a 404 here is the normal state of a fresh clone
+ * rather than an error worth logging loudly.
+ *
+ * @returns {Promise<boolean>}
+ */
+async function isDeployed() {
+  try {
+    const res = await fetch(shardUrl("manifest.json"), {
+      method: "HEAD",
+      cache: "no-cache",
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 /** @type {AskEngine | null} */
@@ -57,7 +71,9 @@ let cached = null;
 export async function resolveEngine(deps = {}) {
   if (cached !== null) return { ok: true, engine: cached };
 
-  if (useMock()) {
+  const override = askOverride();
+
+  if (override === "mock") {
     cached = createMockEngine(deps);
     return { ok: true, engine: cached };
   }
@@ -70,17 +86,16 @@ export async function resolveEngine(deps = {}) {
     };
   }
 
-  // Probe rather than assume. HEAD keeps it cheap, and a 404 here is the normal
-  // state of a fresh clone rather than an error worth logging loudly.
-  let deployed = false;
-  try {
-    const res = await fetch(MANIFEST_URL, { method: "HEAD", cache: "no-cache" });
-    deployed = res.ok;
-  } catch {
-    deployed = false;
-  }
-
-  if (!deployed) {
+  if (!(await isDeployed())) {
+    // Localhost with no weights is a fresh clone, and the mock is what lets the rest
+    // of the site be developed without an 87 MB download. It used to be selected on
+    // hostname alone, which meant a local checkout that HAD run tools/convert.py still
+    // got synthetic text and no way to notice besides the footnote under the answer.
+    // Deployment is the thing actually being asked about, so ask that instead.
+    if (override !== "real" && isLocalhost()) {
+      cached = createMockEngine(deps);
+      return { ok: true, engine: cached };
+    }
     return {
       ok: false,
       code: "not-deployed",

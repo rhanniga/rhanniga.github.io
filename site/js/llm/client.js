@@ -8,7 +8,8 @@
  * any of this existed.
  */
 
-import { MODEL_BASE_URL } from "./config.js";
+import { modelBaseUrl } from "./config.js";
+import { fetchManifest, isCached as areShardsCached } from "./weights.js";
 
 /** @typedef {import('./types.js').AskEngine} AskEngine */
 /** @typedef {import('./types.js').LoadProgress} LoadProgress */
@@ -50,25 +51,14 @@ export function createWorkerEngine() {
 
     isCached: async () => {
       // Asked on the main thread so `ask` can skip the download notice without
-      // spinning up the worker at all.
+      // spinning up the worker at all -- but asked through weights.js, so the URLs and
+      // the cache name are the same ones the worker will write under. Built by hand
+      // here at first, and the hand-built version got both wrong: it hardcoded the
+      // cache name past a version bump, and it concatenated an `hf:` base into
+      // `hf:repo/shard.bin`, which never matches a key and so re-prompted for an 83 MB
+      // download that was already on disk.
       try {
-        if (typeof caches === "undefined") return false;
-        const cache = await caches.open("hannigan-sh-llm-v1");
-        const res = await fetch(
-          MODEL_BASE_URL.endsWith("/")
-            ? MODEL_BASE_URL + "manifest.json"
-            : `${MODEL_BASE_URL}/manifest.json`,
-          { cache: "no-cache" },
-        );
-        if (!res.ok) return false;
-        const manifest = await res.json();
-        for (const shard of manifest.shards) {
-          const url = MODEL_BASE_URL.endsWith("/")
-            ? MODEL_BASE_URL + shard.name
-            : `${MODEL_BASE_URL}/${shard.name}`;
-          if ((await cache.match(url)) === undefined) return false;
-        }
-        return true;
+        return await areShardsCached(await fetchManifest());
       } catch {
         return false;
       }
@@ -100,7 +90,12 @@ export function createWorkerEngine() {
         worker?.postMessage({ t: "cancel", id: 0 });
       });
 
-      worker.postMessage({ t: "load", nCtx: opts.nCtx ?? 0 });
+      worker.postMessage({
+        t: "load",
+        nCtx: opts.nCtx ?? 0,
+        // Resolved here because only the main thread can see `?model=`.
+        modelBase: modelBaseUrl(),
+      });
       try {
         await ready;
         engine.state = "ready";
