@@ -12,6 +12,28 @@
       content="Software engineer, postdoctoral fellow, and lecturer. Resume served through a terminal emulator."
     />
 
+    <!-- The resume text lives in resume.json and is rendered at runtime, so there
+         is deliberately none of it in this file to go stale. ?plain=1 is the real
+         document, and robots.txt points crawlers at it. -->
+    <link rel="canonical" href="https://www.hannigan.sh/" />
+    <meta name="author" content="Ryan Hannigan" />
+
+    <meta property="og:type" content="profile" />
+    <meta property="og:site_name" content="hannigan.sh" />
+    <meta property="og:url" content="https://www.hannigan.sh/" />
+    <meta
+      property="og:title"
+      content="Dr. Ryan Hannigan — Software Engineer"
+    />
+    <meta
+      property="og:description"
+      content="A resume you can only read through a terminal. Includes a 135M-parameter language model that runs entirely in your browser."
+    />
+    <!-- No og:image: there is no image to serve, and pointing at a missing file
+         makes a worse card than omitting it. summary, not summary_large_image,
+         for the same reason. -->
+    <meta name="twitter:card" content="summary" />
+
     <link rel="icon" href="./favicon.ico" sizes="any" />
 
     <!-- Three separate stylesheets so they download in parallel. Do NOT chain
@@ -33,6 +55,7 @@
     <link rel="modulepreload" href="./js/shell/registry.js" />
     <link rel="modulepreload" href="./js/commands/index.js" />
     <link rel="modulepreload" href="./js/terminal/boot.js" />
+    <link rel="modulepreload" href="./js/render/announcer.js" />
     <!-- resume.json is awaited before the first prompt, so it is worth a hint
          even though it is only ~7KB. -->
     <link rel="preload" href="./resume.json" as="fetch" crossorigin />

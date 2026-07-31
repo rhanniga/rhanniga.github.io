@@ -297,6 +297,14 @@ body {
   display: none;
 }
 @media (pointer: coarse) {
+  /* The toolbar is positioned over the bottom of the viewport, so the viewport has
+   * to give up that much room -- otherwise the bar covers the input line, which is
+   * the one thing it exists to let you reach. Matches the button height below
+   * (10px + 10px padding + one line). */
+  #terminal:has(.softkeys:not([hidden])) .viewport {
+    padding-bottom: calc(var(--pad) + var(--line-height) + 20px);
+  }
+
   .softkeys:not([hidden]) {
     display: flex;
     position: absolute;
@@ -346,4 +354,106 @@ body {
 }
 .skip-link:focus {
   top: var(--pad);
+}
+
+/* ── The ?plain=1 document view ────────────────────────────────────────────
+ * Kept in this stylesheet rather than a fourth file: a separate request on every
+ * page load, to style a view most visitors never open, is the wrong trade. The
+ * rules are scoped to [data-view="plain"] and cost nothing otherwise.
+ *
+ * Deliberately not a terminal. Someone who followed the skip link asked for a
+ * document, so this is a document: proportional text, generous measure, real
+ * heading hierarchy. It keeps the Nord palette because that is the site's
+ * identity, not because it is pretending to be a screen. */
+:root[data-view="plain"] body {
+  /* The terminal's overflow lock does not apply here; this page scrolls. */
+  overflow: auto;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.plain {
+  /* ~70 characters at this size: the measure prose is actually readable at. */
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.plain h1 {
+  font-size: 1.75rem;
+  line-height: 1.2;
+  margin: 0 0 0.5rem;
+  color: var(--fg-bright);
+}
+.plain h2 {
+  font-size: 1.15rem;
+  margin: 2.5rem 0 0.75rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid var(--rule);
+  color: var(--accent);
+}
+.plain h3 {
+  font-size: 1rem;
+  margin: 1.5rem 0 0.25rem;
+  color: var(--fg-bright);
+}
+
+.plain p {
+  margin: 0 0 0.75rem;
+}
+/* The meta line under each heading -- location and dates. */
+.plain h3 + p {
+  margin: 0 0 0.5rem;
+  color: var(--fg-dim);
+  font-size: 0.9rem;
+}
+
+.plain ul {
+  margin: 0 0 1rem;
+  padding-left: 1.25rem;
+}
+.plain li {
+  margin-bottom: 0.35rem;
+}
+
+.plain dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35rem 1rem;
+}
+.plain dt {
+  color: var(--fg-dim);
+  font-size: 0.9rem;
+}
+.plain dd {
+  margin: 0;
+}
+@media (max-width: 30rem) {
+  /* Two columns at 375px leaves nothing for the values. */
+  .plain dl {
+    display: block;
+  }
+  .plain dd {
+    margin: 0 0 0.5rem;
+  }
+}
+
+.plain a {
+  color: var(--link);
+}
+.plain a:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.plain footer {
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+  color: var(--fg-dim);
+  font-size: 0.9rem;
 }

@@ -95,6 +95,10 @@ jobs:
           # A missing CNAME wipes the Pages custom-domain setting on deploy.
           test -f site/CNAME
           echo "CNAME -> $(cat site/CNAME)"
+          # ?plain=1 is the crawlable surface, so these are not optional extras.
+          test -f site/robots.txt
+          test -f site/sitemap.xml
+          python3 -c "import xml.dom.minidom; xml.dom.minidom.parse('site/sitemap.xml')"
 
       - uses: actions/configure-pages@v5
 

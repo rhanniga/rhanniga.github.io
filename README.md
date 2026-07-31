@@ -150,6 +150,38 @@ Other caveats worth knowing:
   redacted out of its output, because a confidently invented phone number is
   worse than none.
 
+## Accessibility
+
+A terminal emulator is a deliberately unusual interface, and no amount of
+`aria-label` makes it a good one for someone using a screen reader. So there are
+two real answers rather than one grudging one:
+
+- **`?plain=1`** renders a semantic HTML resume — one `h1`, a real heading
+  outline, `<ul>` for bullets, actual links — from the same `resume.json`. It is
+  the first focusable element on the page (a skip link), and it is what
+  `robots.txt` points crawlers at, since `index.html` deliberately contains no
+  resume text to go stale.
+- **A separate announcement path.** `#output` is `aria-hidden`: it is
+  hard-wrapped to the column count, and a 42-column wrap read by a screen reader
+  becomes a stack of fragments rather than a sentence. `#announcer` is a
+  visually-hidden `role="log"` that receives the same content **unwrapped**, one
+  block per command. `ask` announces once when generation finishes, because a
+  live region fed a token stream interrupts itself continuously.
+
+On mobile, the soft-key toolbar (`Tab ↑ ↓ ^C ^L`, coarse pointers only) is not a
+convenience: on-screen keyboards have no Ctrl and no arrow keys, so without it
+history, completion, and aborting a running `ask` are unreachable. Terminal
+height tracks `visualViewport` rather than `100dvh` alone, because only
+`visualViewport` reports the on-screen keyboard — that is what keeps the prompt
+visible while typing.
+
+Pinch zoom is not blocked (no `maximum-scale`, no `user-scalable=no`), and
+Escape is not trapped.
+
+**Not yet verified on real hardware:** VoiceOver and NVDA reading order, and iOS
+Safari's memory ceiling and keyboard behaviour. The iOS simulator does not
+reproduce either.
+
 ## Credits
 
 The inference engine derives from [llama2.c](https://github.com/karpathy/llama2.c)

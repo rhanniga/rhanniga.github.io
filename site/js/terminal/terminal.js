@@ -48,6 +48,7 @@ const BLINK_RESUME_MS = 500;
  * @property {() => void} shutdown
  * @property {() => {mono: boolean, rule: boolean}} probeFont
  * @property {() => number} remeasure
+ * @property {(action: import('./keys.js').KeyAction) => void} sendKey
  */
 
 export class Terminal {
@@ -159,6 +160,7 @@ export class Terminal {
         this.renderInput();
         return this.#metrics.cols;
       },
+      sendKey: (action) => this.sendKey(action),
     };
   }
 
@@ -280,6 +282,34 @@ export class Terminal {
     const ref = this.#viewport.getBoundingClientRect();
     this.#kbd.style.left = `${box.left - ref.left + this.#viewport.scrollLeft}px`;
     this.#kbd.style.top = `${box.top - ref.top + this.#viewport.scrollTop}px`;
+  }
+
+  /**
+   * Deliver a key action that did not come from a keyboard.
+   *
+   * The soft-key toolbar needs this: iOS and Android on-screen keyboards have no
+   * Ctrl key and no arrow keys, so on a phone the toolbar is the *only* way to
+   * reach history, completion, and abort.
+   *
+   * A real KeyboardEvent is constructed for `raw` rather than a stub, because a
+   * mode is entitled to look at it -- and one that does would otherwise crash only
+   * on mobile, which is the worst place to find out.
+   *
+   * @param {import('./keys.js').KeyAction} action
+   */
+  sendKey(action) {
+    if (this.#dead || this.#modes.isEmpty) return;
+    this.#pokeCursor();
+    /** @type {import('./keys.js').KeyEvent} */
+    const ev = {
+      action,
+      key: "",
+      ctrl: false,
+      alt: false,
+      shift: false,
+      raw: new KeyboardEvent("keydown", { key: "" }),
+    };
+    void this.#modes.top().onKey(ev, { term: this.api, out: this.#writer });
   }
 
   /* ── Focus ───────────────────────────────────────────────────────────── */

@@ -19,6 +19,7 @@ import { EXIT } from "../shell/env.js";
 /** @typedef {import('./modes.js').ModeContext} ModeContext */
 /** @typedef {import('./keys.js').KeyEvent} KeyEvent */
 /** @typedef {import('../shell/registry.js').Registry} Registry */
+/** @typedef {import('../render/chunk.js').Line} Line */
 
 /**
  * @typedef {object} ShellDeps
@@ -27,6 +28,9 @@ import { EXIT } from "../shell/env.js";
  * @property {import('../data/types.js').Resume} resume
  * @property {History} history
  * @property {() => void} motd
+ * @property {import('../render/announcer.js').Announcer} [announcer]
+ *   Optional screen-reader sink. Absent in tests, which is why every use is
+ *   optional-chained rather than assumed.
  */
 
 /** @implements {TerminalMode} */
@@ -248,6 +252,14 @@ export class ShellMode {
     const running = new RunningMode({ abort: controller, label: argv[0] });
     ctx.term.pushMode(running);
 
+    // Everything the command writes is collected here and announced once, after it
+    // finishes. Buffering rather than announcing per row is what makes the screen
+    // reader hear one coherent block instead of a line at a time -- and it is also
+    // what gives `ask` the right behaviour for free, since a token stream announced
+    // as it arrives would interrupt itself continuously.
+    /** @type {Line[]} */
+    const announced = [];
+
     const status = await dispatch(
       argv,
       {
@@ -257,12 +269,24 @@ export class ShellMode {
         history: this.#deps.history,
         motd: this.#deps.motd,
         term: ctx.term,
-        out: (line) => ctx.out.row(line),
-        rows: (lines) => ctx.out.rows(lines),
-        err: (text) => ctx.out.row([c(text, "error")]),
+        out: (line) => {
+          announced.push(line);
+          ctx.out.row(line);
+        },
+        rows: (lines) => {
+          announced.push(...lines);
+          ctx.out.rows(lines);
+        },
+        err: (text) => {
+          const line = [c(text, "error")];
+          announced.push(line);
+          ctx.out.row(line);
+        },
       },
       controller.signal,
     );
+
+    this.#deps.announcer?.rows(announced);
 
     ctx.term.removeMode(running);
     this.#deps.env.setStatus(status);

@@ -69,4 +69,8 @@ jobs:
           test -f site/index.html
           test -f site/resume.json
           test -f site/CNAME
+          test -f site/robots.txt
+          test -f site/sitemap.xml
           jq empty site/resume.json
+          # ?plain=1 is the crawlable surface, so a broken sitemap is a real defect.
+          python3 -c "import xml.dom.minidom; xml.dom.minidom.parse('site/sitemap.xml')" 
