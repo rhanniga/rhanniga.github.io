@@ -25,6 +25,55 @@ jobs:
       # through to restore-keys.
       - uses: actions/checkout@v4
 
+      # convert.py needs numpy + huggingface_hub. The runner's system pip is
+      # externally managed on 24.04, so this is the isolated interpreter rather
+      # than a venv hand-rolled in the step below. Everything else here is
+      # stdlib, so this is the only reason it exists.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: tools/requirements.txt
+
+      # The 87 MB of weights are not in git -- see .gitignore -- so they are
+      # rebuilt here. convert.py is pure numpy over a bf16 safetensors download,
+      # with no torch and no randomness, and it reproduces byte-for-byte: the
+      # manifest it generates is identical to the one produced locally, hash for
+      # hash. That is what makes caching the .hslm safe and the gate below
+      # meaningful.
+      #
+      # Cached on convert.py's own hash, because the ~270 MB download plus the
+      # quantize pass is the only slow part of this workflow. Sharding is
+      # stdlib-only and takes about a second, so it is redone every run rather
+      # than cached -- which also guarantees m.hslm is on disk for the engine
+      # self-checks below.
+      - name: Cache the converted model
+        uses: actions/cache@v4
+        with:
+          path: m.hslm
+          key: hslm-hybrid-${{ hashFiles('tools/convert.py') }}
+
+      - name: Build the model weights
+        env:
+          # The model the golden fixtures and the SQNR gate were run against. A
+          # mismatch means the upstream weights moved under us, and shipping
+          # them would mean serving a model nothing in this repo has tested.
+          # Re-verify locally, then update this hash and the fixtures together.
+          EXPECTED_SHA: 846760a0ff2c90909cec9a92c65b79162dfe095ca7744d2d513c41554fd25363
+        run: |
+          if [ ! -f m.hslm ]; then
+            pip install --quiet -r tools/requirements.txt
+            python3 tools/convert.py --quant hybrid -o m.hslm
+          else
+            echo "m.hslm restored from cache"
+          fi
+          python3 tools/shard.py m.hslm --out site/model/
+          got=$(jq -r .sha256 site/model/manifest.json)
+          if [ "$got" != "$EXPECTED_SHA" ]; then
+            echo "::error::model sha256 $got != expected $EXPECTED_SHA"
+            exit 1
+          fi
+
       # Build the C -> WASM `ask` engine into the gitignored site/ask/ slot.
       # clang + wasm-ld ship on ubuntu-latest, so this costs ~2s -- compare
       # ~60-120s to install emsdk. Skipped until engine/ exists (M10).
@@ -50,10 +99,13 @@ jobs:
       # against the native one token-for-token -- exact, not approximate, because the
       # SIMD kernels are integer-only and must agree bit-for-bit.
       #
-      # Skipped when no model is available: the weights are 87 MB and live outside
-      # the repo, so CI validates the build, the size, and the zero-imports property
-      # rather than downloading them on every push.
+      # The weights step above puts m.hslm on disk, so this now runs the full
+      # comparison against the exact bytes this deploy publishes rather than
+      # skipping it. Still guarded on the file existing, so the step keeps working
+      # if the weights step is ever made conditional.
       - name: Engine self-checks
+        env:
+          HSLM_MODEL: m.hslm
         run: |
           if [ ! -f engine/tests/run_wasm.mjs ]; then
             echo "engine tests not present yet — skipping"
@@ -99,6 +151,19 @@ jobs:
           test -f site/robots.txt
           test -f site/sitemap.xml
           python3 -c "import xml.dom.minidom; xml.dom.minidom.parse('site/sitemap.xml')"
+          # `ask` decides the model is deployed by HEAD-probing this manifest, then
+          # fetches every shard it names. A manifest that ships without its shards is
+          # therefore worse than no manifest at all, and both were silently absent from
+          # the artifact for the first several deploys -- site/model/ is gitignored, so
+          # nothing in this job had any reason to notice. Asserted here instead.
+          test -f site/model/manifest.json
+          jq -r '.shards[] | "\(.name) \(.bytes)"' site/model/manifest.json |
+            while read -r name bytes; do
+              test -f "site/model/$name"
+              [ "$(stat -c%s "site/model/$name")" -eq "$bytes" ] ||
+                { echo "::error::site/model/$name is not $bytes bytes"; exit 1; }
+            done
+          echo "model -> $(jq -r '.model + " (" + (.shards | length | tostring) + " shards, " + (.bytes | tostring) + " bytes)"' site/model/manifest.json)"
 
       - uses: actions/configure-pages@v5
 

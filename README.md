@@ -20,7 +20,8 @@ no watch process, no dev server, and no HMR — edit a file and hit reload. That
 immediacy is the whole point of the stack.
 
 `ask` needs two build outputs that are not in git: the wasm module and the
-weights.
+weights. CI rebuilds both on every deploy — see [Deploying](#deploying) — so this
+is only needed locally.
 
 ```sh
 make -C engine wasm wasm-scalar                                  # -> site/ask/
@@ -37,6 +38,34 @@ and `?ask=real` force either one.
 Two useful query parameters while developing: `?model=<url>` points the shard
 fetch somewhere else (`?model=hf:` for the HuggingFace copy), and `?plain=1`
 renders the semantic HTML resume.
+
+## Deploying
+
+Push to `main`. `.github/workflows/deploy.yml` publishes `site/` to Pages
+verbatim — whatever is in that directory is what goes live, which is what makes
+"is it public?" answerable by "is it under `site/`?".
+
+Two of the things under `site/` are not in git, and CI reconstructs both:
+
+- **`site/ask/*.wasm`** — `clang` and `wasm-ld` ship on the runner, so this is a
+  ~2s compile.
+- **`site/model/`** — `convert.py` downloads the bf16 source weights and
+  quantizes them with numpy. No torch, no randomness, and reproducible
+  byte-for-byte: the manifest CI generates is hash-for-hash identical to one
+  produced locally. The `.hslm` is cached on `convert.py`'s hash, so only the
+  first deploy after a converter change pays the ~270 MB download.
+
+Because it reproduces exactly, the workflow can assert *which* model it is
+publishing rather than merely that a model exists — `EXPECTED_SHA` in the weights
+step is the model the golden fixtures and the SQNR gate were run against, and a
+mismatch fails the deploy. If you re-quantize deliberately, update that hash and
+the fixtures in the same commit.
+
+The artifact check also asserts that `manifest.json` and every shard it names are
+present at the right size. That is not paranoia: `site/model/` is gitignored, and
+for the first several deploys nothing in the workflow had any reason to notice
+that the weights were never in the artifact at all. `ask` reported `model not
+deployed` in production while working perfectly on localhost.
 
 ## Editing the resume
 
@@ -109,9 +138,10 @@ request, both worth knowing about:
    before being rendered — a rate-limit notice or error page must never reach the
    prompt.
 2. **The model weights**, ~83 MB, fetched on the first `ask` only, and never
-   without confirming first. Served from this origin by default, so this is not a
-   third-party request; `site/js/llm/config.js` can point it at the HuggingFace
-   copy instead with a one-constant change. See below.
+   without confirming first. Served from this origin — CI builds them into
+   `site/model/`, so this is not a third-party request. `site/js/llm/config.js`
+   can point the fetch at a HuggingFace copy instead with a one-constant change,
+   which would make it one. See below.
 
 Nothing else phones home: no analytics, no fonts, no CDN, no service worker.
 

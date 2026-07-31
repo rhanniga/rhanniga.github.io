@@ -4,9 +4,11 @@
 site/ask/*
 !site/ask/.gitkeep
 
-# Model weights and conversion intermediates. 87 MB of shards, served from a
-# HuggingFace repo in production -- see site/js/llm/config.js. Kept out of git
-# because a re-quantization would add another 87 MB to history permanently.
+# Model weights and conversion intermediates. 87 MB of shards, rebuilt by the
+# deploy workflow and served from this origin -- see site/js/llm/config.js. Kept
+# out of git because a re-quantization would add another 87 MB to history
+# permanently, and because convert.py is reproducible: the same source weights
+# quantize to the same bytes, so this costs nothing but CI time to reconstruct.
 *.hslm
 *.bin
 !site/data/tokenizer.bin
