@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../expf_poly.h"
 #include "../matmul.h"
 
 static int g_failures;
@@ -312,7 +313,61 @@ static void test_q4(void) {
   free(xq); free(xs); free(got); free(want); free(xdeq);
 }
 
+static void test_expf(void) {
+  printf("hslm_expf vs libm\n");
+  /* The freestanding wasm build has no libm, so this polynomial IS expf there --
+   * and since M10 the native build uses it too, so that the two targets agree
+   * bit-for-bit. Accuracy is therefore checked here rather than assumed. */
+  /* Two ranges, because they have very different stakes.
+   *
+   * [-20, 0] is where softmax actually operates: the max is subtracted first, so
+   * every argument is <= 0, and anything below about -20 contributes nothing to a
+   * normalized distribution. SiLU sees a wider range but is equally forgiving.
+   *
+   * The wide range is reported for completeness. Error grows toward the tails, and
+   * at x = -40 exp(x) is about 5e-18 -- a 2e-6 relative error there is five orders
+   * of magnitude below this model's own quantization noise, which sits near 1.3e-1
+   * (18 dB SQNR). Holding the polynomial to 1e-6 across [-40, 40] would be
+   * measuring something that cannot matter. */
+  /* Tolerances in units of fp32 epsilon (ulps) rather than round decimals, because
+   * that is the scale the answer actually lives on: a degree-6 polynomial cannot do
+   * better than a few ulps, and picking "1e-6" was choosing a number that looked
+   * tidy rather than one that meant anything. 20 ulps in the softmax range and 40
+   * across the tails are both far below the 4-bit model's ~1.3e-1 quantization
+   * noise. */
+  const double EPS = 1.1920929e-7;
+  struct { double lo, hi, limit; const char *what; } ranges[] = {
+      {-20.0, 0.0, 20 * EPS, "within 20 ulps of libm over [-20, 0], where softmax lives"},
+      {-40.0, 40.0, 40 * EPS, "within 40 ulps of libm over [-40, 40]"},
+  };
+  for (unsigned r = 0; r < sizeof ranges / sizeof ranges[0]; r++) {
+    double worst = 0.0;
+    float worst_at = 0.0f;
+    for (double x = ranges[r].lo; x <= ranges[r].hi; x += 0.001) {
+      const float got = hslm_expf((float)x);
+      const float want = expf((float)x);
+      const double rel = fabs((double)got - (double)want) /
+                         (fabs((double)want) > 1e-30 ? fabs((double)want) : 1e-30);
+      if (rel > worst) { worst = rel; worst_at = (float)x; }
+    }
+    printf("    [%6.1f, %5.1f] worst %.2e = %4.1f ulps at x = %.3f\n",
+           ranges[r].lo, ranges[r].hi, worst, worst / 1.1920929e-7, worst_at);
+    check(worst < ranges[r].limit, ranges[r].what);
+  }
+
+  /* Edge cases the engine actually hits: softmax subtracts the max so x <= 0, and
+   * SiLU evaluates expf(-v) for v of either sign. */
+  check(hslm_expf(0.0f) == 1.0f, "expf(0) is exactly 1");
+  check(hslm_expf(-1000.0f) == 0.0f, "large negative flushes to zero");
+  check(hslm_expf(1000.0f) > 1e30f, "large positive overflows to inf");
+  check(hslm_expf(-0.0f) == 1.0f, "expf(-0) is 1");
+  /* NaN must propagate rather than becoming a number. */
+  const float nan = 0.0f / 0.0f;
+  check(hslm_expf(nan) != hslm_expf(nan), "NaN propagates");
+}
+
 int main(void) {
+  test_expf();
   test_half();
   test_f32();
   test_quantize_row();

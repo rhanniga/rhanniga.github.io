@@ -5,9 +5,11 @@ Built here rather than at runtime so the token count can be asserted in CI, the
 prompt can be diffed in review, and the shipped KV-cache blob (a later
 optimization) has something fixed to be a cache of.
 
-Every prompt token costs about 54 ms of prefill on a desktop, so the budget is
-real: 350 tokens is ~19 s before the first word, and the verbatim resume comes to
-640 tokens, which is ~35 s. That constraint drives most of the rules below.
+Every prompt token costs prefill time, so the budget is real -- though M10 measured
+the engine at 26.7 GFLOP/s rather than the 5 the plan estimated, which makes a
+prompt token about 10 ms rather than 54. At 351 tokens that is ~3.5 s, not ~19.
+The rules below are therefore more conservative than they now need to be; see
+engine/tests/fixtures/perf.md.
 
 Emits:
     site/js/llm/prompt.js               the text and the pre-tokenized ids
@@ -24,12 +26,12 @@ REPO = "HuggingFaceTB/SmolLM2-135M-Instruct"
 
 # The target, and a hard ceiling.
 #
-# Prefill runs at roughly 54 ms/token single-threaded on a desktop, so 350 tokens
-# is ~19 s before the first word and 400 is ~22 s. The difference between 350 and
-# 351 is noise; the difference between 350 and 640 (which the verbatim resume comes
-# to) is whether anyone waits. So overshooting the target warns, and only the
-# ceiling fails -- a build that breaks on one token would just get the threshold
-# raised, which is worse than a warning that gets read.
+# Measured at ~10 ms/token on a desktop (M10: 26.7 GFLOP/s), so 350 tokens is
+# ~3.5 s before the first word and 400 is ~4 s. Mobile is 2-3x slower. The
+# difference between 350 and 351 is noise; the difference between 350 and 640
+# (which the verbatim resume comes to) is ~3 s versus ~6.5 s. So overshooting the
+# target warns, and only the ceiling fails -- a build that breaks on one token would
+# just get the threshold raised, which is worse than a warning that gets read.
 TOKEN_TARGET = 350
 TOKEN_CEILING = 400
 
@@ -196,7 +198,7 @@ def main() -> int:
     print(f"system prompt: {len(system)} chars, {n} tokens "
           f"(target {TOKEN_TARGET}, ceiling {TOKEN_CEILING})")
     if ids is not None:
-        print(f"  ~{n * 0.054:.1f}s of prefill on a desktop at ~5 GFLOP/s")
+        print(f"  ~{n * 0.010:.1f}s of prefill on a desktop (measured 26.7 GFLOP/s)")
         if n > TOKEN_CEILING:
             print(f"  OVER CEILING by {n - TOKEN_CEILING} tokens -- failing")
         elif n > TOKEN_TARGET:
@@ -217,7 +219,7 @@ def main() -> int:
         " */",
         "",
         f"/** {n} tokens. Target {TOKEN_TARGET}, hard ceiling {TOKEN_CEILING} --",
-        f" *  at ~54ms/token that is ~{n * 0.054:.0f}s of prefill before the first word,",
+        f" *  at ~10ms/token that is ~{n * 0.010:.1f}s of prefill before the first word,",
         " *  paid once per session thanks to the KV snapshot. */",
         f"export const SYSTEM_PROMPT_TOKENS = {n};",
         "",

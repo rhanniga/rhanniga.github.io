@@ -16,13 +16,34 @@
 #include <string.h>
 
 #include "engine.h"
+#include "expf_poly.h"
 
 #define MAX_BLOCKS 64
 
 static void *g_blocks[MAX_BLOCKS];
 static int g_n_blocks;
 
+/* The SAME polynomial the wasm build uses, not libm's expf.
+ *
+ * This matters more than it looks. The quantized SIMD kernels are bit-identical to
+ * the scalar ones by construction -- all their work is integer -- so the wasm and
+ * native builds ought to agree token-for-token, which is what makes a SIMD bug
+ * findable. They did not: they agreed for 14 tokens and then diverged, because
+ * libm's expf and this polynomial differ in the last couple of bits, and softmax
+ * runs 30 times per token. A near-tie eventually flips.
+ *
+ * So both targets share one expf, and the divergence is gone. It also means the
+ * polynomial is exercised by every native test rather than only in the browser --
+ * an expf wrong only under wasm would have presented as "the model is worse online".
+ *
+ * Build with -DML_LIBM_EXPF to get libm's instead, which is how the polynomial's
+ * accuracy is measured against it.
+ */
+#ifdef ML_LIBM_EXPF
 float ml_expf(float x) { return expf(x); }
+#else
+float ml_expf(float x) { return hslm_expf(x); }
+#endif
 
 void *ml_alloc(uint32_t nbytes) {
   if (g_n_blocks >= MAX_BLOCKS) {

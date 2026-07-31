@@ -8,7 +8,7 @@
  */
 
 /** 351 tokens. Target 350, hard ceiling 400 --
- *  at ~54ms/token that is ~19s of prefill before the first word,
+ *  at ~10ms/token that is ~3.5s of prefill before the first word,
  *  paid once per session thanks to the KV snapshot. */
 export const SYSTEM_PROMPT_TOKENS = 351;
 

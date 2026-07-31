@@ -45,15 +45,28 @@ jobs:
 
       # Runs the .wasm under node against PyTorch-derived golden logits. Node
       # has full WASM SIMD, a debugger, and no browser.
-      - name: Engine golden test
+      # Native is verified against PyTorch separately (engine/tests/check_golden.py,
+      # which needs torch and so runs locally). Here the wasm build is checked
+      # against the native one token-for-token -- exact, not approximate, because the
+      # SIMD kernels are integer-only and must agree bit-for-bit.
+      #
+      # Skipped when no model is available: the weights are 87 MB and live outside
+      # the repo, so CI validates the build, the size, and the zero-imports property
+      # rather than downloading them on every push.
+      - name: Engine self-checks
         run: |
           if [ ! -f engine/tests/run_wasm.mjs ]; then
             echo "engine tests not present yet — skipping"
             exit 0
           fi
-          node engine/tests/run_wasm.mjs \
-            --wasm site/ask/engine.simd.wasm \
-            --golden engine/tests/fixtures/golden.json
+          make -C engine test
+          if [ -n "${HSLM_MODEL:-}" ] && [ -f "$HSLM_MODEL" ]; then
+            make -C engine native
+            node engine/tests/run_wasm.mjs --model "$HSLM_MODEL" \
+              --native ./engine/engine --bench
+          else
+            echo "HSLM_MODEL not set — skipping the wasm/native comparison"
+          fi
 
       # Node's built-in runner, zero dependencies. The bare-directory form
       # (`node --test tests/`) is broken on Node 26 -- no args auto-discovers.
