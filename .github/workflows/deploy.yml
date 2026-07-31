@@ -68,6 +68,11 @@ jobs:
             echo "HSLM_MODEL not set — skipping the wasm/native comparison"
           fi
 
+      # cards.js is generated from resume.json. Deploying a stale one would have
+      # grep-mode quoting a resume that is no longer the resume.
+      - name: Grep-mode corpus is current
+        run: python3 tools/build_cards.py --check
+
       # Node's built-in runner, zero dependencies. The bare-directory form
       # (`node --test tests/`) is broken on Node 26 -- no args auto-discovers.
       - name: Unit tests

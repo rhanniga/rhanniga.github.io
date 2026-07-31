@@ -100,7 +100,7 @@ export function createWorkerEngine() {
         worker?.postMessage({ t: "cancel", id: 0 });
       });
 
-      worker.postMessage({ t: "load" });
+      worker.postMessage({ t: "load", nCtx: opts.nCtx ?? 0 });
       try {
         await ready;
         engine.state = "ready";

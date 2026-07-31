@@ -329,3 +329,75 @@ export function formatContact(resume, cols) {
   out.push(blank);
   return out;
 }
+
+/* ── Grep-mode ────────────────────────────────────────────────────────────
+ * Retrieved resume text, rendered to look like it belongs to the same document
+ * as `experience` -- because it is the same document. The banner is the only
+ * thing that marks it as a fallback, and it says why in plain words rather than
+ * apologising. */
+
+/**
+ * @param {import('../llm/fallback.js').GrepAnswer} answer
+ * @param {number} cols
+ * @returns {Line[]}
+ */
+export function formatGrepAnswer(answer, cols) {
+  /** @type {Line[]} */
+  const out = [];
+
+  if (answer.shown.length === 0) {
+    out.push(
+      ...indent(
+        wrapChunks(
+          [c("nothing in the resume matches that. try "), c("help", "bright"),
+           c(" for the list of commands.")],
+          cols - PAD,
+        ),
+        PAD,
+      ),
+    );
+    out.push(blank);
+    return out;
+  }
+
+  for (const match of answer.shown) {
+    const head = [c(match.card.title, "bright")];
+    if (match.card.meta !== undefined && match.card.meta !== "") {
+      head.push(sp(1), c(`(${match.card.meta})`, "dim"));
+    }
+    out.push(...indent(wrapChunks(head, cols - PAD), PAD));
+
+    // A job or education card's text is built from its own title, so printing both
+    // says the same thing twice. Compared rather than switched on `kind`, so a new
+    // card kind cannot reintroduce the duplication silently.
+    if (!match.card.text.startsWith(match.card.title)) {
+      // Highlighted with the card's curated keywords, exactly as `experience`
+      // renders the same sentence -- not with the query terms, which would make the
+      // same bullet look different depending on how it was found.
+      out.push(
+        ...bullet(highlight(match.card.text, match.card.keywords), cols, {
+          indent: PAD + BULLET_PAD,
+        }),
+      );
+    }
+    out.push(blank);
+  }
+
+  if (answer.remaining > 0) {
+    const plural = answer.remaining === 1 ? "match" : "matches";
+    /** @type {import('./chunk.js').Chunk[]} */
+    const tail = [c(`(${answer.remaining} more ${plural}`, "dim")];
+    if (answer.see.length > 0) {
+      tail.push(c(" — try ", "dim"));
+      answer.see.forEach((cmd, i) => {
+        if (i > 0) tail.push(c(" or ", "dim"));
+        tail.push(c(cmd, "bright"));
+      });
+    }
+    tail.push(c(")", "dim"));
+    out.push(...indent(wrapChunks(tail, cols - PAD), PAD));
+    out.push(blank);
+  }
+
+  return out;
+}

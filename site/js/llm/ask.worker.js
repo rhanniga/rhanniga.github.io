@@ -41,9 +41,13 @@ function post(msg) {
 }
 
 /**
- * @param {{signal?: AbortSignal}} opts
+ * @param {{signal?: AbortSignal, nCtx?: number}} opts
  */
 async function load(opts) {
+  // 0 means "whatever config says". A constrained device passes 512, which halves
+  // the KV cache from 47 MB to 24 MB -- the difference between running and being
+  // killed on an older iPhone.
+  const nCtx = opts.nCtx !== undefined && opts.nCtx > 0 ? opts.nCtx : N_CTX;
   post({ t: "phase", phase: "wasm" });
   const wasmUrl = hasSimd() ? WASM_SIMD_URL : WASM_SCALAR_URL;
   const wasmRes = await fetch(wasmUrl);
@@ -74,7 +78,7 @@ async function load(opts) {
   });
 
   post({ t: "phase", phase: "instantiate" });
-  const rc = engine.init(ptr, manifest.bytes, N_CTX);
+  const rc = engine.init(ptr, manifest.bytes, nCtx);
   if (rc !== 0) throw new Error(`ml_init: ${describeError(rc)}`);
   engine.seed(Date.now() & 0xffffffff, 0);
 
@@ -83,7 +87,7 @@ async function load(opts) {
     engine,
     tokenizer,
     systemIds: SYSTEM_PROMPT_IDS,
-    nCtx: N_CTX,
+    nCtx,
     sampling: SAMPLING,
     signal: opts.signal,
     onPrefill: (done, total) =>
@@ -149,7 +153,7 @@ self.onmessage = async (ev) => {
     case "load": {
       loadController = new AbortController();
       try {
-        await load({ signal: loadController.signal });
+        await load({ signal: loadController.signal, nCtx: msg.nCtx });
       } catch (err) {
         const name = /** @type {any} */ (err)?.name;
         post({

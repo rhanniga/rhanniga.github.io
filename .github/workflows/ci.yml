@@ -49,6 +49,12 @@ jobs:
             echo "HSLM_MODEL not set — skipping the wasm/native comparison"
           fi
 
+      # cards.js is generated from resume.json. Editing the resume without
+      # regenerating would leave grep-mode quoting stale text, which is the one thing
+      # it is supposed to be incapable of.
+      - name: Grep-mode corpus is current
+        run: python3 tools/build_cards.py --check
+
       - name: Unit tests
         run: node --test
 

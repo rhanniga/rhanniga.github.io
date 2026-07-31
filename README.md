@@ -89,26 +89,66 @@ request, both worth knowing about:
    the prompt keeps `visitor@`. The response is validated as a syntactic IP
    before being rendered — a rate-limit notice or error page must never reach the
    prompt.
-2. **The model weights**, ~72 MB, fetched from HuggingFace on the first `ask`
+2. **The model weights**, ~83 MB, fetched from HuggingFace on the first `ask`
    only, and never without confirming first. See below.
 
 Nothing else phones home: no analytics, no fonts, no CDN, no service worker.
 
 ## The `ask` command
 
-First invocation downloads ~72 MB of quantized weights (SmolLM2-135M-Instruct,
-int4, group size 64), caches them in the Cache API, and asks before doing it.
-Expect roughly 15 seconds to read the resume and then ~18 tokens/second on a
-desktop. Subsequent questions in the same session skip the read.
+First invocation downloads ~83 MB of quantized weights (SmolLM2-135M-Instruct,
+int8 embedding + int4 blocks, group size 64), caches them in the Cache API, and
+asks before doing it. Subsequent questions in the same session are much faster,
+because the KV cache for the system prompt is snapshotted once and restored.
 
-Caveats worth knowing:
+Measured on a desktop with WebAssembly SIMD:
+
+| | |
+|---|---|
+| reading the resume (351 tokens) | ~4.0 s, first question only |
+| generation | ~77 tokens/second |
+| second and later questions | first token in ~0.5 s |
+| peak wasm heap | 151 MB (83 weights + 47 KV cache + 16 snapshot) |
+
+Without SIMD the engine is about 3.7× slower — roughly 20 s to read the resume
+and ~21 tokens/second. That is a wait, not a hang, so it still runs; `ask` warns
+first.
+
+### When it falls back to searching the resume instead
+
+`ask` decides before downloading anything, and says which it chose and why:
+
+| condition | behaviour |
+|---|---|
+| no WebAssembly | resume search; nothing to override |
+| ~160 MB cannot be reserved | resume search, overridable |
+| a previous `ask` killed this tab | resume search, overridable |
+| no SIMD **and** a constrained device | resume search, overridable |
+| no SIMD on a desktop | model, with a warning |
+| `navigator.deviceMemory ≤ 4`, or iOS | model at `nCtx=512`, halving the KV cache |
+
+`--offline` selects resume search directly and `--force-llm` overrides any
+overridable gate. Resume search is BM25 over ~24 cards generated from
+`resume.json`, and for most questions someone actually types it is the *better*
+answer: instant, quotes the resume verbatim, and cannot make anything up.
+
+Regenerate the corpus after editing the resume — CI fails if it is stale:
+
+```
+python3 tools/build_cards.py
+```
+
+Other caveats worth knowing:
 
 - **Safari evicts all origin storage after 7 days without interaction**, so
   returning Safari users re-download. Chrome and Firefox persist.
-- No WebAssembly SIMD, or a device too small to hold ~120 MB, falls back to a
-  keyword-scored search over the resume — which, for most questions, is more
-  useful than the model. `ask --offline` forces it.
-- The model is 135M parameters. It hallucinates. That is expected and fine.
+- **iOS Safari can kill the tab for memory with no catchable error.** `ask`
+  writes a `sessionStorage` breadcrumb before allocating and clears it after, so
+  a reload can tell you it happened rather than silently trying again.
+- The model is 135M parameters. It hallucinates. That is expected and fine —
+  except for contact details, which are intercepted before reaching the model and
+  redacted out of its output, because a confidently invented phone number is
+  worse than none.
 
 ## Credits
 

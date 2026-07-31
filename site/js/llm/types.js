@@ -28,6 +28,15 @@
  */
 
 /**
+ * @typedef {object} LoadOptions
+ * @property {AbortSignal} [signal]
+ * @property {(p: LoadProgress) => void} [onProgress]
+ * @property {number} [nCtx]
+ *   Context length override. Omitted or 0 means the configured default; a
+ *   constrained device passes 512 to halve the KV cache. See capabilities.plan().
+ */
+
+/**
  * @typedef {object} AskEngineInfo
  * @property {string} id
  * @property {string} label
@@ -67,7 +76,7 @@
  * @property {AskEngineInfo} info
  * @property {'unloaded'|'loading'|'ready'|'error'} state
  * @property {() => Promise<boolean>} isCached
- * @property {(opts?: {signal?: AbortSignal, onProgress?: (p: LoadProgress) => void}) => Promise<void>} load
+ * @property {(opts?: LoadOptions) => Promise<void>} load
  * @property {(opts: GenerateOptions) => AsyncIterable<string>} generate
  * @property {() => void} reset
  * @property {() => Promise<void>} dispose
