@@ -66,8 +66,13 @@ const PHONE_SHAPE = /\d{3}[-.\s]\d{4}/;
  * @returns {boolean}
  */
 export function looksFabricated(word) {
-  // An email-shaped token. The model can invent these as readily as numbers.
-  if (/[^\s@]+@[^\s@]+\.[a-z]{2,}/i.test(word)) return true;
+  // An email-shaped token. The model can invent these as readily as numbers, and it
+  // does not confine itself to well-formed ones: asked how to get in touch it produced
+  // `hannigan@rustyassistant`, which a TLD-requiring pattern lets straight through
+  // while a reader would still take it for an address. So any `@` joining two word
+  // characters counts. Nothing in this resume legitimately contains one -- asserted in
+  // guard.test.mjs against every word of the real system prompt.
+  if (/\w@\w/.test(word)) return true;
 
   // Strip surrounding punctuation before pattern-matching, so a trailing full
   // stop does not defeat the year exemption.
@@ -105,4 +110,46 @@ export function redactWord(word) {
  */
 export function redactText(text) {
   return text.replace(/\S+/g, (word) => redactWord(word));
+}
+
+/**
+ * A streaming redactor: feed it decoded text, get back text safe to emit.
+ *
+ * Word-level redaction needs word boundaries, and tokens do not respect them --
+ * `123-456-7890` arrives as several tokens, none of which looks fabricated alone. So
+ * the trailing partial word is held until whitespace confirms it is complete. A
+ * fabricated number is therefore caught before any part of it is emitted, rather than
+ * being un-printed afterwards, which a forward-only stream cannot do.
+ *
+ * This belongs at the point text is produced rather than in each consumer: the worker
+ * posts deltas straight to the main thread, and anything that reads the engine gets the
+ * protection without having to remember to ask for it.
+ *
+ * @returns {{push: (text: string) => string, flush: () => string}}
+ */
+export function makeRedactor() {
+  let pending = "";
+  return {
+    push(text) {
+      pending += text;
+      // Everything through the last whitespace is settled; the tail may still grow.
+      let last = -1;
+      for (let i = pending.length - 1; i >= 0; i--) {
+        const code = pending.charCodeAt(i);
+        if (code === 32 || code === 9 || code === 10 || code === 13) {
+          last = i;
+          break;
+        }
+      }
+      if (last === -1) return "";
+      const ready = pending.slice(0, last + 1);
+      pending = pending.slice(last + 1);
+      return redactText(ready);
+    },
+    flush() {
+      const rest = pending;
+      pending = "";
+      return redactText(rest);
+    },
+  };
 }

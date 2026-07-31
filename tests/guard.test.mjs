@@ -21,6 +21,7 @@ import {
   looksFabricated,
   redactWord,
   redactText,
+  makeRedactor,
   REDACTED,
 } from "../site/js/llm/guard.js";
 import { streamWrapper } from "../site/js/render/stream-wrap.js";
@@ -191,4 +192,82 @@ test("streaming redaction does not disturb a clean answer", () => {
   for (const piece of answer.match(/\S+\s*/g) ?? []) w.push(piece);
   w.end();
   assert.equal(written.trim(), answer);
+});
+
+/* ── The streaming redactor ────────────────────────────────────────────────
+   Word-level redaction over a token stream. A fabricated number arrives as
+   several tokens, none of which looks fabricated alone, so the trailing partial
+   word is withheld until whitespace settles it. These tests feed text in
+   awkward splits, because that is what tokenization actually produces. */
+
+test("makeRedactor catches a number split across tokens", () => {
+  // The exact failure this was written for: the real model emitted
+  // "Ryan's phone number is 123-456-7890." and session.generate passed it through.
+  const r = makeRedactor();
+  let out = "";
+  for (const piece of ["Ryan", "'s phone", " number", " is ", "123", "-", "456", "-", "789", "0."]) {
+    out += r.push(piece);
+  }
+  out += r.flush();
+  assert.ok(!/\d{3}[-.\s]?\d{4}/.test(out), `digits survived: ${out}`);
+  assert.match(out, /\[redacted\]/);
+  assert.match(out, /Ryan's phone number is/);
+});
+
+test("makeRedactor emits nothing until a word is settled", () => {
+  const r = makeRedactor();
+  assert.equal(r.push("123"), "", "a partial word must be withheld");
+  assert.equal(r.push("-456-"), "", "still partial");
+  assert.equal(r.push("7890"), "", "still no whitespace");
+  assert.equal(r.push(" "), REDACTED + " ", "whitespace settles it, redacted");
+});
+
+test("makeRedactor preserves text and whitespace exactly", () => {
+  const r = makeRedactor();
+  const input = "Ryan  worked\tat Acme\nfrom 2018-2022, earning $250,000.\n";
+  let out = "";
+  for (const ch of input) out += r.push(ch);
+  out += r.flush();
+  assert.equal(out, input, "innocent text must pass through byte for byte");
+});
+
+test("makeRedactor flush redacts a trailing unsettled word", () => {
+  // EOS with no trailing whitespace: without the flush redaction this would leak.
+  const r = makeRedactor();
+  assert.equal(r.push("call "), "call ");
+  assert.equal(r.push("555-867-5309"), "");
+  assert.equal(r.flush(), REDACTED);
+});
+
+test("makeRedactor flush is idempotent", () => {
+  const r = makeRedactor();
+  r.push("hello world");
+  assert.equal(r.flush(), "world");
+  assert.equal(r.flush(), "", "a second flush must not repeat the tail");
+});
+
+test("makeRedactor does not redact dates arriving as separate tokens", () => {
+  // The year exemption has to survive tokenization too, or correct answers get
+  // visibly corrupted -- the failure mode that makes an over-eager guard worse
+  // than none.
+  const r = makeRedactor();
+  let out = "";
+  for (const piece of ["He was there ", "2018", "-", "2022", " and ", "2023", "-present", "."]) {
+    out += r.push(piece);
+  }
+  out += r.flush();
+  assert.match(out, /2018-2022/);
+  assert.match(out, /2023-present/);
+  assert.ok(!out.includes(REDACTED), `a date was redacted: ${out}`);
+});
+
+test("a malformed address with no TLD is still flagged", () => {
+  // Observed from the real model: "Website hannigan@rustyassistant". A pattern that
+  // insists on a dot and a TLD misses it, and a reader does not.
+  assert.equal(looksFabricated("hannigan@rustyassistant"), true);
+  assert.equal(looksFabricated("ryan@localhost"), true);
+  assert.equal(looksFabricated("r@h"), true);
+  // Still not flagged: an @ that is not joining two words.
+  assert.equal(looksFabricated("@"), false);
+  assert.equal(looksFabricated("email@"), false);
 });

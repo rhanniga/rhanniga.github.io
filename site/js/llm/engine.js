@@ -8,13 +8,21 @@
  * (EX_UNAVAILABLE), and everything else about the site keeps working.
  */
 
+import { MODEL_BASE_URL } from "./config.js";
 import { createMockEngine } from "./mock-engine.js";
+import { createWorkerEngine } from "./client.js";
 import { hasWasm, hasSimd } from "./capabilities.js";
 
 /** @typedef {import('./types.js').AskEngine} AskEngine */
 
-/** Where CI writes the wasm build and its manifest. */
-const MANIFEST_URL = "./ask/manifest.json";
+/**
+ * The model manifest, which is what "is the model deployed?" actually means. The
+ * wasm build is separate and much smaller; without weights there is nothing to run.
+ */
+const MANIFEST_URL = (() => {
+  const base = MODEL_BASE_URL;
+  return base.endsWith("/") ? base + "manifest.json" : `${base}/manifest.json`;
+})();
 
 /**
  * @typedef {{ok: true, engine: AskEngine} | {ok: false, reason: string, code: 'not-deployed'|'no-wasm'}} EngineResult
@@ -80,14 +88,8 @@ export async function resolveEngine(deps = {}) {
     };
   }
 
-  // The real worker-backed engine lands in M12. Until then, a deployed manifest
-  // is reported as not-deployed rather than pretending -- there is genuinely
-  // nothing to run yet.
-  return {
-    ok: false,
-    code: "not-deployed",
-    reason: "model artifacts present but the engine is not wired up yet (M12)",
-  };
+  cached = createWorkerEngine();
+  return { ok: true, engine: cached };
 }
 
 /** Test seam: forget the memoised engine. */

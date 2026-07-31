@@ -4,11 +4,13 @@
 site/ask/*
 !site/ask/.gitkeep
 
-# Model weights and conversion intermediates. The shipped weights live in a
-# HuggingFace repo pinned by revision SHA -- see site/js/llm/config.js.
+# Model weights and conversion intermediates. 87 MB of shards, served from a
+# HuggingFace repo in production -- see site/js/llm/config.js. Kept out of git
+# because a re-quantization would add another 87 MB to history permanently.
 *.hslm
 *.bin
 !site/data/tokenizer.bin
+site/model/
 
 # Python tooling
 tools/.venv/
