@@ -1,0 +1,23 @@
+{
+  "$comment": [
+    "Editor-only. Never served, never run, requires no install -- VS Code's",
+    "bundled TypeScript server reads this to type-check the JSDoc annotations",
+    "in site/js. There is no build step: `checkJs` + `noEmit` means this only",
+    "ever produces squiggles, never output.",
+    "",
+    "noUncheckedIndexedAccess earns its place because line-buffer.js indexes a",
+    "grapheme array constantly."
+  ],
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "checkJs": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noEmit": true
+  },
+  "include": ["site/js/**/*.js", "tests/**/*.mjs"]
+}

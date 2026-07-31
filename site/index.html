@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!-- No maximum-scale, no user-scalable=no: blocking pinch zoom is an
+         accessibility violation. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#2E3440" />
+    <title>Dr. Ryan Hannigan — Software Engineer</title>
+    <meta
+      name="description"
+      content="Software engineer, postdoctoral fellow, and lecturer. Resume served through a terminal emulator."
+    />
+
+    <!-- The resume text lives in resume.json and is rendered at runtime, so there
+         is deliberately none of it in this file to go stale. ?plain=1 is the real
+         document, and robots.txt points crawlers at it. -->
+    <link rel="canonical" href="https://www.hannigan.sh/" />
+    <meta name="author" content="Ryan Hannigan" />
+
+    <meta property="og:type" content="profile" />
+    <meta property="og:site_name" content="hannigan.sh" />
+    <meta property="og:url" content="https://www.hannigan.sh/" />
+    <meta
+      property="og:title"
+      content="Dr. Ryan Hannigan — Software Engineer"
+    />
+    <meta
+      property="og:description"
+      content="A resume you can only read through a terminal. Includes a 135M-parameter language model that runs entirely in your browser."
+    />
+    <!-- No og:image: there is no image to serve, and pointing at a missing file
+         makes a worse card than omitting it. summary, not summary_large_image,
+         for the same reason. -->
+    <meta name="twitter:card" content="summary" />
+
+    <link rel="icon" href="./favicon.ico" sizes="any" />
+
+    <!-- Three separate stylesheets so they download in parallel. Do NOT chain
+         them with CSS @import, which serializes the requests into a waterfall. -->
+    <link rel="stylesheet" href="./styles/nord.css" />
+    <link rel="stylesheet" href="./styles/theme.css" />
+    <link rel="stylesheet" href="./styles/terminal.css" />
+
+    <!-- With no bundler, every module is an HTTP request and graph *depth*
+         becomes a latency chain. These hints let the browser fetch the deep
+         dependencies in parallel instead of discovering them level by level.
+         Keep this list in sync as the module graph changes. -->
+    <link rel="modulepreload" href="./js/util.js" />
+    <link rel="modulepreload" href="./js/render/chunk.js" />
+    <link rel="modulepreload" href="./js/render/layout.js" />
+    <link rel="modulepreload" href="./js/render/format.js" />
+    <link rel="modulepreload" href="./js/terminal/terminal.js" />
+    <link rel="modulepreload" href="./js/terminal/shell-mode.js" />
+    <link rel="modulepreload" href="./js/shell/registry.js" />
+    <link rel="modulepreload" href="./js/commands/index.js" />
+    <link rel="modulepreload" href="./js/terminal/boot.js" />
+    <link rel="modulepreload" href="./js/render/announcer.js" />
+    <!-- resume.json is awaited before the first prompt, so it is worth a hint
+         even though it is only ~7KB. -->
+    <link rel="preload" href="./resume.json" as="fetch" crossorigin />
+
+    <!-- The one place an inline script is justified: stamp data-crt before
+         first paint so there is no flash of un-CRT'd content. Kept in sync
+         with the `crt` command's storage key and default. -->
+    <script>
+      (function () {
+        var on = true;
+        try {
+          var v = localStorage.getItem("hannigan.sh:crt");
+          if (v === "on" || v === "off") on = v === "on";
+          else if (
+            matchMedia("(prefers-reduced-motion: reduce)").matches ||
+            matchMedia("(prefers-contrast: more)").matches
+          )
+            on = false;
+        } catch (e) {
+          /* Safari private mode throws on localStorage access */
+        }
+        /* On <html>, not #terminal -- that element does not exist yet. */
+        document.documentElement.dataset.crt = on ? "on" : "off";
+      })();
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="?plain=1">Skip terminal — view plain resume</a>
+
+    <div id="terminal" data-focused="false" data-booting="true">
+      <div class="crt" aria-hidden="true"></div>
+
+      <div class="viewport" id="viewport">
+        <!-- Append-only. aria-hidden because streaming a token feed into a live
+             region announces one token at a time and is worse than silence;
+             #announcer gets complete unwrapped blocks instead. -->
+        <div class="output" id="output" aria-hidden="true"></div>
+
+        <!-- Deliberately all on one line, and DO NOT let a formatter re-indent
+             it. .inputline is white-space: pre-wrap, which it has to be so that
+             leading spaces in a typed line survive -- and that also makes the
+             indentation between these tags significant, rendering as a literal
+             newline plus spaces before the prompt. terminal.js strips stray text
+             nodes here as a second line of defence, because an HTML formatter
+             reflowing this file would otherwise silently break the prompt. -->
+        <!-- prettier-ignore -->
+        <div class="inputline" id="inputline" aria-hidden="true" hidden><span class="prompt"></span><span class="line"><span class="line-pre"></span><span class="cursor" data-blink="true">&nbsp;</span><span class="line-post"></span></span></div>
+
+        <textarea
+          id="kbd"
+          class="kbd-sink"
+          rows="1"
+          spellcheck="false"
+          autocapitalize="off"
+          autocomplete="off"
+          autocorrect="off"
+          inputmode="text"
+          enterkeyhint="go"
+          aria-label="Terminal input. Type a command and press Enter. Type help for a list of commands."
+          aria-describedby="kbd-help"
+        ></textarea>
+      </div>
+
+      <div class="softkeys" id="softkeys" hidden></div>
+    </div>
+
+    <div
+      id="announcer"
+      class="sr-only"
+      role="log"
+      aria-live="polite"
+      aria-atomic="false"
+    ></div>
+
+    <p id="kbd-help" class="sr-only">
+      This is a simulated terminal serving Ryan Hannigan's resume. Type a
+      command and press Enter; type help for a list of commands. When text is
+      selected, Control-C copies it; otherwise Control-C cancels the current
+      command.
+    </p>
+
+    <span id="metrics" class="metrics" aria-hidden="true"></span>
+
+    <noscript>
+      <div style="padding: 1rem; max-width: 40rem">
+        <h1>Dr. Ryan Hannigan</h1>
+        <p>
+          Software engineer, postdoctoral fellow, and lecturer with over 7 years
+          of experience in the tech industry and academia. Proficient in Python
+          and C++, with a track record of leading cross-functional teams at
+          institutions including UT Austin and CERN.
+        </p>
+        <p>
+          This site is a terminal emulator and needs JavaScript. The underlying
+          data is plain JSON:
+          <a href="./resume.json">resume.json</a>.
+        </p>
+        <ul>
+          <li><a href="https://github.com/rhanniga">GitHub: rhanniga</a></li>
+          <li>
+            <a href="https://linkedin.com/in/partoniic">LinkedIn: partoniic</a>
+          </li>
+        </ul>
+      </div>
+    </noscript>
+
+    <script type="module" src="./js/main.js"></script>
+  </body>
+</html>

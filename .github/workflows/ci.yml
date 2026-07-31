@@ -1,0 +1,76 @@
+name: CI
+
+# Validation only. The workflow this replaces triggered the *deploy* job on
+# pull_request, which meant every PR published straight to production.
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the ask engine
+        run: |
+          if [ ! -f engine/Makefile ]; then
+            echo "engine/ not present yet — skipping"
+            exit 0
+          fi
+          clang --version
+          wasm-ld --version || { sudo apt-get update && sudo apt-get install -y lld; }
+          make -C engine wasm wasm-scalar OUT=../site/ask
+          make -C engine test
+
+      # Native is verified against PyTorch separately (engine/tests/check_golden.py,
+      # which needs torch and so runs locally). Here the wasm build is checked
+      # against the native one token-for-token -- exact, not approximate, because the
+      # SIMD kernels are integer-only and must agree bit-for-bit.
+      #
+      # Skipped when no model is available: the weights are 87 MB and live outside
+      # the repo, so CI validates the build, the size, and the zero-imports property
+      # rather than downloading them on every push.
+      - name: Engine self-checks
+        run: |
+          if [ ! -f engine/tests/run_wasm.mjs ]; then
+            echo "engine tests not present yet — skipping"
+            exit 0
+          fi
+          make -C engine test
+          if [ -n "${HSLM_MODEL:-}" ] && [ -f "$HSLM_MODEL" ]; then
+            make -C engine native
+            node engine/tests/run_wasm.mjs --model "$HSLM_MODEL" \
+              --native ./engine/engine --bench
+          else
+            echo "HSLM_MODEL not set — skipping the wasm/native comparison"
+          fi
+
+      # cards.js is generated from resume.json. Editing the resume without
+      # regenerating would leave grep-mode quoting stale text, which is the one thing
+      # it is supposed to be incapable of.
+      - name: Grep-mode corpus is current
+        run: python3 tools/build_cards.py --check
+
+      - name: Unit tests
+        run: node --test
+
+      # Exits nonzero if any semantic colour role drops below its WCAG
+      # threshold. Several Nord colours fail AA on their own, so the mixes in
+      # theme.css are load-bearing rather than decorative.
+      - name: Contrast audit
+        run: node tools/contrast.mjs
+
+      - name: Verify artifact contents
+        run: |
+          test -f site/index.html
+          test -f site/resume.json
+          test -f site/CNAME
+          test -f site/robots.txt
+          test -f site/sitemap.xml
+          jq empty site/resume.json
+          # ?plain=1 is the crawlable surface, so a broken sitemap is a real defect.
+          python3 -c "import xml.dom.minidom; xml.dom.minidom.parse('site/sitemap.xml')" 

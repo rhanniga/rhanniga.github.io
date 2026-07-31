@@ -1,0 +1,10 @@
+# Golden-reference dependencies, used only by golden_logits.py.
+#
+# These exist to produce an INDEPENDENT reference. The whole value of the goldens
+# is that they come from HuggingFace's own implementation rather than from mine --
+# a numpy forward pass I wrote would share any misunderstanding (the RoPE
+# convention above all) with the C I am checking, and would confirm a bug rather
+# than catch it.
+-r requirements.txt
+torch>=2.4
+transformers>=4.44

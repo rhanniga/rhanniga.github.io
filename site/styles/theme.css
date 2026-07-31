@@ -1,0 +1,247 @@
+/* Nord mapped onto terminal roles.
+ *
+ * ANSI mapping follows the official Nord iTerm/Terminal.app ports. Nord
+ * deliberately duplicates most brights; only black (nord1/nord3) and cyan
+ * (nord8/nord7) actually differ.
+ *
+ * nord10 (#5E81AC) and nord12 (#D08770) are NOT in the 16-colour set -- Nord
+ * reserves them for UI accents, so they're used here for the focus ring, the
+ * vignette edge, and the `warn` role only.
+ */
+:root {
+  color-scheme: dark;
+
+  /* ── ANSI 0-7 ─────────────────────────────────────────────────────── */
+  --ansi-black: var(--nord1);
+  --ansi-red: var(--nord11);
+  --ansi-green: var(--nord14);
+  --ansi-yellow: var(--nord13);
+  --ansi-blue: var(--nord9);
+  --ansi-magenta: var(--nord15);
+  --ansi-cyan: var(--nord8);
+  --ansi-white: var(--nord5);
+  /* ── ANSI 8-15 (bright) ───────────────────────────────────────────── */
+  --ansi-bright-black: var(--nord3);
+  --ansi-bright-red: var(--nord11);
+  --ansi-bright-green: var(--nord14);
+  --ansi-bright-yellow: var(--nord13);
+  --ansi-bright-blue: var(--nord9);
+  --ansi-bright-magenta: var(--nord15);
+  --ansi-bright-cyan: var(--nord7);
+  --ansi-bright-white: var(--nord6);
+
+  /* ── Surfaces ─────────────────────────────────────────────────────── */
+  --bg: var(--nord0);
+  --bg-alt: var(--nord1);
+  --selection-bg: var(--nord2);
+  --rule: var(--nord3); /* 1.69:1 -- borders ONLY, never text */
+
+  /* ── Text ─────────────────────────────────────────────────────────────
+   * WCAG contrast against --bg (nord0 #2E3440), measured -- run
+   * `node tools/contrast.mjs` to re-verify after any palette change:
+   *   nord6  10.84:1  nord4  9.25:1   nord13 8.00:1  nord8  6.24:1
+   *   nord14 6.13:1   nord7  5.99:1   nord9  4.64:1  nord15 4.41:1
+   *   nord12 4.39:1   nord10 3.10:1   nord11 3.05:1  nord3  1.69:1
+   * Everything from nord15 down FAILS the 4.5:1 AA threshold for normal-size
+   * text, which is what the mixes below are for. */
+  --fg: var(--nord4); /* 9.25:1 */
+  --fg-bright: var(--nord6); /* 10.84:1 */
+
+  /* Dim text: 62% nord4 toward nord0 = 4.59:1. 62% is the FLOOR, not a
+   * suggestion -- 60% measures 4.42:1 and fails.
+   * The tempting `--fg-dim: var(--nord3)` is 1.69:1 -- effectively invisible.
+   * That is the mistake nearly every Nord terminal theme makes, and here it
+   * would render locations, `ls -l` metadata, and JSON punctuation unreadable. */
+  --fg-dim: color-mix(in srgb, var(--nord4) 62%, var(--nord0));
+
+  /* ── Roles ────────────────────────────────────────────────────────── */
+  --heading: var(--nord8); /* 6.24:1 */
+  --subheading: var(--nord7); /* 5.99:1 */
+  --keyword: var(--nord8); /* not bold: bolding every keyword ruins a paragraph */
+  --success: var(--nord14); /* 6.13:1 */
+
+  /* Raw nord15 is 4.41:1 and raw nord12 is 4.39:1 -- both just under AA. Dates
+   * are content a recruiter reads and warnings are content that matters, so
+   * neither gets to be "close enough". 96% toward nord6 clears 4.5:1 (4.60 and
+   * 4.56) and is visually indistinguishable from the raw hue. */
+  --accent: color-mix(in srgb, var(--nord15) 96%, var(--nord6)); /* 4.60:1 */
+  --warn: color-mix(in srgb, var(--nord12) 96%, var(--nord6)); /* 4.56:1 */
+
+  /* Error: pure nord11 is 3.05:1 and fails for body text. Keep it for the
+   * marker/prefix; use the lightened mix (~4.60:1) for the message itself. */
+  --error: var(--nord11);
+  --error-text: color-mix(in srgb, var(--nord11) 70%, var(--nord6));
+
+  --link: var(--nord9); /* 4.64:1 -- passes, barely */
+  --link-hover: var(--nord8);
+
+  /* ── Prompt ───────────────────────────────────────────────────────────
+   * PS1 mirrors Ubuntu bash's default \u@\h:\w\$ structure. The repl prompt
+   * gets a deliberately different hue -- the colour IS the mode indicator. */
+  --prompt-user: var(--nord14);
+  --prompt-path: var(--nord9);
+  --prompt-sigil: var(--nord4);
+  /* Shares the accent hue deliberately -- and therefore its AA correction, since
+   * raw nord15 is 4.41:1 and this is prompt text a user reads. */
+  --prompt-repl: var(--accent);
+  /* The live line's chevron. nord8 at 6.24:1 -- the brightest accent available,
+   * which suits the one element that should draw the eye. */
+  --prompt-chevron: var(--nord8);
+
+  --cursor-bg: var(--nord4);
+  --cursor-fg: var(--nord0);
+  --focus-ring: var(--nord10); /* 3.10:1 -- meets the 3:1 non-text requirement */
+}
+
+/* ── Token classes emitted by render/chunk.js ─────────────────────────── */
+.tk-dim {
+  color: var(--fg-dim);
+}
+.tk-bright {
+  color: var(--fg-bright);
+}
+.tk-heading {
+  color: var(--heading);
+}
+.tk-subheading {
+  color: var(--subheading);
+}
+.tk-accent {
+  color: var(--accent);
+}
+.tk-keyword {
+  color: var(--keyword);
+}
+.tk-error {
+  color: var(--error-text);
+}
+.tk-warn {
+  color: var(--warn);
+}
+.tk-success {
+  color: var(--success);
+}
+.tk-rule {
+  color: var(--rule);
+}
+.tk-link {
+  color: var(--link);
+}
+.tk-json-key {
+  color: var(--nord8);
+}
+.tk-json-string {
+  color: var(--nord14);
+}
+.tk-json-number {
+  color: var(--nord15);
+}
+.tk-json-punct {
+  color: var(--fg-dim);
+}
+.tk-prompt-user {
+  color: var(--prompt-user);
+}
+.tk-prompt-path {
+  color: var(--prompt-path);
+}
+.tk-prompt-sigil {
+  color: var(--prompt-sigil);
+}
+.tk-prompt-chevron {
+  color: var(--prompt-chevron);
+}
+/* A different hue IS the mode indicator -- this is what tells you at a glance
+ * that you are inside `ask -i` and not at the shell. */
+.tk-prompt-repl {
+  color: var(--prompt-repl);
+}
+
+/* ── Pixel font: opt-in via the `font` command ─────────────────────────
+ * Not the default. Pixel fonts are crisp only at exact integer multiples of
+ * their em grid (16px here); 125%/150% Windows scaling -- very common, and not
+ * controllable from CSS -- turns them to mush. And a hard-edged 1-bit face is
+ * aesthetically at odds with Nord's soft, low-contrast palette. */
+@font-face {
+  font-family: "PixelOperatorMono";
+  src: url("../fonts/PixelOperatorMono.ttf") format("truetype");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "PixelOperatorMono";
+  src: url("../fonts/PixelOperatorMono-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-display: swap;
+}
+:root[data-font="pixel"] {
+  --font-mono: "PixelOperatorMono", ui-monospace, monospace;
+}
+
+/* ── CRT overlay ────────────────────────────────────────────────────────
+ * data-crt lives on :root (like data-font) so the inline script in <head> can
+ * stamp it before first paint -- #terminal does not exist that early. */
+.crt {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  user-select: none;
+  z-index: 2;
+  display: none;
+}
+:root[data-crt="on"] .crt {
+  display: block;
+  background:
+    /* vignette */
+    radial-gradient(
+      ellipse at center,
+      transparent 45%,
+      rgb(20 24 32 / 0.65) 100%
+    ),
+    /* Scanlines: static, never animated. A 3px period rather than 2px, because
+     * at 2px on a 2x display the pair lands on 2 device pixels each and the
+     * pattern can alias into a flat wash instead of reading as lines. */
+      repeating-linear-gradient(
+        to bottom,
+        rgb(0 0 0 / 0.11) 0 1px,
+        transparent 1px 3px
+      );
+}
+/* Phosphor glow: a tight core plus a wide bloom, which is what actually reads as
+ * a CRT. A single 2px shadow is invisible at any alpha low enough to be safe.
+ *
+ * color-mix() rather than `rgb(from currentColor r g b / 18%)`. Relative colour
+ * syntax is the least-supported feature this stylesheet could use, and using
+ * `currentColor` as its origin is the shakiest corner of it -- so the glow simply
+ * did not render. color-mix has been in every engine since 2023 and takes
+ * currentColor without complaint. There is a fixed-colour fallback below for
+ * anything older.
+ *
+ * Deriving from currentColor is the point: each token class glows in its own
+ * hue, which is how phosphor behaves. */
+:root[data-crt="on"] .row,
+:root[data-crt="on"] .inputline {
+  text-shadow:
+    0 0 1px color-mix(in srgb, currentColor 45%, transparent),
+    0 0 8px color-mix(in srgb, currentColor 22%, transparent);
+}
+@supports not (color: color-mix(in srgb, red 50%, transparent)) {
+  /* Fixed nord4-ish glow: does not follow the text colour, but is visible. */
+  :root[data-crt="on"] .row,
+  :root[data-crt="on"] .inputline {
+    text-shadow: 0 0 2px rgb(216 222 233 / 0.3);
+  }
+}
+/* prefers-contrast is about legibility, so it genuinely should kill the glow
+ * and the vignette. (prefers-reduced-motion is about movement, and these
+ * effects are static -- it governs the power-on flash and boot staging
+ * instead, in terminal.css.) */
+@media (prefers-contrast: more) {
+  :root[data-crt="on"] .crt {
+    display: none;
+  }
+  :root[data-crt="on"] .row,
+  :root[data-crt="on"] .inputline {
+    text-shadow: none;
+  }
+}

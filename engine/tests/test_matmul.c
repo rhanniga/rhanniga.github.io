@@ -1,0 +1,437 @@
+/* test_matmul.c -- self-checks for the GEMV kernels.
+ *
+ * These exist mainly for M10. When the SIMD paths arrive they must agree with the
+ * scalar ones here, and a SIMD bug is otherwise indistinguishable from a bad
+ * model: the output is plausible, slightly wrong, and impossible to eyeball.
+ *
+ *     make -C engine test
+ */
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "../expf_poly.h"
+#include "../matmul.h"
+
+static int g_failures;
+
+static void check(int cond, const char *what) {
+  printf("  %-58s %s\n", what, cond ? "ok" : "FAIL");
+  if (!cond) g_failures++;
+}
+
+/* Deterministic PRNG, so a failure is reproducible. */
+static uint32_t g_rng = 12345;
+static float frand(void) {
+  g_rng = g_rng * 1664525u + 1013904223u;
+  return (float)((double)(g_rng >> 8) / 8388608.0 - 1.0);
+}
+
+/** Reference GEMV in double precision, to judge the fp32 one against. */
+static void ref_f32(double *out, const float *x, const float *w, int n, int d) {
+  for (int i = 0; i < d; i++) {
+    double s = 0.0;
+    for (int j = 0; j < n; j++) s += (double)w[(long)i * n + j] * (double)x[j];
+    out[i] = s;
+  }
+}
+
+static void test_half(void) {
+  printf("ml_half_to_float\n");
+  /* Raw half bit patterns with known values. */
+  check(ml_half_to_float(0x0000) == 0.0f, "+0");
+  check(ml_half_to_float(0x8000) == -0.0f, "-0");
+  check(ml_half_to_float(0x3c00) == 1.0f, "1.0");
+  check(ml_half_to_float(0xbc00) == -1.0f, "-1.0");
+  check(ml_half_to_float(0x4000) == 2.0f, "2.0");
+  check(fabsf(ml_half_to_float(0x3555) - 0.333252f) < 1e-5f, "~1/3");
+  check(ml_half_to_float(0x7c00) > 1e30f, "+inf");
+  /* Smallest subnormal: 2^-24. Exercised because the q4 scales can reach it when
+   * a whole group of weights is tiny. */
+  check(fabsf(ml_half_to_float(0x0001) - 5.9604645e-8f) < 1e-12f, "smallest subnormal");
+  check(fabsf(ml_half_to_float(0x03ff) - 6.0975552e-5f) < 1e-10f, "largest subnormal");
+}
+
+static void test_f32(void) {
+  printf("matmul_f32\n");
+  const int n = 576, d = 128;
+  float *x = malloc((size_t)n * 4);
+  float *w = malloc((size_t)n * d * 4);
+  float *out = malloc((size_t)d * 4);
+  double *ref = malloc((size_t)d * 8);
+  for (int i = 0; i < n; i++) x[i] = frand();
+  for (long i = 0; i < (long)n * d; i++) w[i] = frand() * 0.05f;
+
+  matmul_f32(out, x, w, n, d);
+  ref_f32(ref, x, w, n, d);
+
+  /* Measured against the sum of |terms|, not against the result.
+   *
+   * Relative-to-result is the wrong metric for a dot product: when the true sum
+   * nearly cancels, the result can be arbitrarily small while the rounding error
+   * stays proportional to the terms that produced it. That made the first version
+   * of this test report 2.9e-05 and "fail" a perfectly correct kernel. The bound
+   * that actually holds is |error| <= n * eps * sum|w_i * x_i|, so that is what is
+   * checked. */
+  double worst = 0.0;
+  for (int i = 0; i < d; i++) {
+    double magnitude = 0.0;
+    for (int j = 0; j < n; j++) {
+      magnitude += fabs((double)w[(long)i * n + j] * (double)x[j]);
+    }
+    const double backward = fabs(out[i] - ref[i]) / (magnitude > 0 ? magnitude : 1);
+    if (backward > worst) worst = backward;
+  }
+  printf("    worst backward error %.2e (bound is n*eps = %.2e)\n", worst,
+         (double)n * 1.1920929e-7);
+  check(worst < (double)n * 1.1920929e-7, "within the fp32 accumulation bound");
+
+  free(x); free(w); free(out); free(ref);
+}
+
+static void test_quantize_row(void) {
+  printf("quantize_row\n");
+  const int n = 256, group = 64;
+  float x[256];
+  int8_t xq[256];
+  float xs[4];
+  for (int i = 0; i < n; i++) x[i] = frand() * (float)(i / group + 1);
+
+  quantize_row(xq, xs, x, n, group);
+
+  double worst = 0.0;
+  for (int g = 0; g < n / group; g++) {
+    for (int j = 0; j < group; j++) {
+      const double deq = (double)xq[g * group + j] * (double)xs[g];
+      const double err = fabs(deq - (double)x[g * group + j]);
+      /* One int8 step is scale; half a step is the best round-to-nearest can do. */
+      if (err / (xs[g] > 0 ? xs[g] : 1) > worst) {
+        worst = err / (xs[g] > 0 ? xs[g] : 1);
+      }
+    }
+  }
+  printf("    worst error %.3f quantization steps\n", worst);
+  check(worst <= 0.5001, "never worse than half a step");
+
+  /* Per-group scales must be independent: group 3 has ~4x the magnitude of
+   * group 0, so a single global scale would show up here. */
+  check(xs[3] > xs[0] * 2.0f, "scales adapt per group");
+
+  /* An all-zero group must not divide by zero or produce NaN. */
+  float z[64] = {0};
+  int8_t zq[64];
+  float zs[1];
+  quantize_row(zq, zs, z, 64, 64);
+  int zero_ok = (zs[0] == 0.0f);
+  for (int i = 0; i < 64; i++) {
+    if (zq[i] != 0) zero_ok = 0;
+  }
+  check(zero_ok, "an all-zero group yields zeros, not NaN");
+}
+
+/** Quantize to int8 the way convert.py does, for the q8 kernel test. */
+static void make_q8(const float *w, int n, int d, int group, int8_t *wq, float *ws) {
+  const int ng = n / group;
+  for (int i = 0; i < d; i++) {
+    for (int g = 0; g < ng; g++) {
+      float amax = 0.0f;
+      for (int j = 0; j < group; j++) {
+        const float a = fabsf(w[(long)i * n + g * group + j]);
+        if (a > amax) amax = a;
+      }
+      const float scale = amax / 127.0f;
+      ws[(long)i * ng + g] = scale;
+      const float inv = scale != 0.0f ? 1.0f / scale : 0.0f;
+      for (int j = 0; j < group; j++) {
+        const float v = w[(long)i * n + g * group + j] * inv;
+        int q = (int)(v + (v >= 0 ? 0.5f : -0.5f));
+        if (q > 127) q = 127;
+        if (q < -127) q = -127;
+        wq[(long)i * n + g * group + j] = (int8_t)q;
+      }
+    }
+  }
+}
+
+static uint16_t float_to_half(float f) {
+  /* Round-to-nearest-even, enough for building test fixtures. */
+  union { float f; uint32_t u; } in = {f};
+  const uint32_t sign = (in.u >> 31) & 1u;
+  int exp = (int)((in.u >> 23) & 0xffu) - 127 + 15;
+  uint32_t mant = in.u & 0x7fffffu;
+  if (exp <= 0) return (uint16_t)(sign << 15);
+  if (exp >= 31) return (uint16_t)((sign << 15) | 0x7c00u);
+  uint16_t h = (uint16_t)((sign << 15) | ((uint32_t)exp << 10) | (mant >> 13));
+  if ((mant & 0x1fffu) > 0x1000u) h++;
+  return h;
+}
+
+/** Quantize to int4 exactly as convert.py packs it: element j and j+group/2 share
+ *  byte j, biased by +8. */
+static void make_q4(const float *w, int n, int d, int group, uint8_t *wq,
+                    uint16_t *ws, float *deq) {
+  const int ng = n / group, half = group / 2;
+  for (int i = 0; i < d; i++) {
+    for (int g = 0; g < ng; g++) {
+      const float *src = w + (long)i * n + g * group;
+      float extremum = 0.0f;
+      float amax = 0.0f;
+      for (int j = 0; j < group; j++) {
+        if (fabsf(src[j]) > amax) { amax = fabsf(src[j]); extremum = src[j]; }
+      }
+      const float dscale = extremum / -8.0f;
+      const uint16_t h = float_to_half(dscale);
+      ws[(long)i * ng + g] = h;
+      const float back = ml_half_to_float(h);
+      const float inv = back != 0.0f ? 1.0f / back : 0.0f;
+      int q[64];
+      for (int j = 0; j < group; j++) {
+        const float v = src[j] * inv;
+        int qq = (int)(v + (v >= 0 ? 0.5f : -0.5f)) + 8;
+        if (qq > 15) qq = 15;
+        if (qq < 0) qq = 0;
+        q[j] = qq;
+        deq[(long)i * n + g * group + j] = (float)(qq - 8) * back;
+      }
+      uint8_t *packed = wq + (long)i * (n / 2) + g * half;
+      for (int j = 0; j < half; j++) {
+        packed[j] = (uint8_t)(q[j] | (q[j + half] << 4));
+      }
+    }
+  }
+}
+
+static void test_q8(void) {
+  printf("matmul_q8\n");
+  const int n = 576, d = 64, group = 64;
+  float *x = malloc((size_t)n * 4);
+  float *w = malloc((size_t)n * d * 4);
+  int8_t *wq = malloc((size_t)n * d);
+  float *ws = malloc((size_t)d * (n / group) * 4);
+  int8_t *xq = malloc((size_t)n);
+  float *xs = malloc((size_t)(n / group) * 4);
+  float *got = malloc((size_t)d * 4);
+  float *want = malloc((size_t)d * 4);
+  float *wdeq = malloc((size_t)n * d * 4);
+
+  for (int i = 0; i < n; i++) x[i] = frand();
+  for (long i = 0; i < (long)n * d; i++) w[i] = frand() * 0.05f;
+
+  make_q8(w, n, d, group, wq, ws);
+  for (int i = 0; i < d; i++) {
+    for (int g = 0; g < n / group; g++) {
+      for (int j = 0; j < group; j++) {
+        const long k = (long)i * n + g * group + j;
+        wdeq[k] = (float)wq[k] * ws[(long)i * (n / group) + g];
+      }
+    }
+  }
+
+  quantize_row(xq, xs, x, n, group);
+  matmul_q8(got, xq, xs, wq, ws, n, d, group);
+
+  /* The reference is dequantized weights times *dequantized* activations, so this
+   * isolates the kernel's arithmetic from the quantization error itself. */
+  float *xdeq = malloc((size_t)n * 4);
+  for (int g = 0; g < n / group; g++) {
+    for (int j = 0; j < group; j++) {
+      xdeq[g * group + j] = (float)xq[g * group + j] * xs[g];
+    }
+  }
+  matmul_f32(want, xdeq, wdeq, n, d);
+
+  double worst = 0.0;
+  for (int i = 0; i < d; i++) {
+    const double scale = fabs(want[i]) > 1e-4 ? fabs(want[i]) : 1e-4;
+    const double rel = fabs(got[i] - want[i]) / scale;
+    if (rel > worst) worst = rel;
+  }
+  printf("    worst relative error vs dequantize-then-f32: %.2e\n", worst);
+  check(worst < 1e-4, "equals dequantize-then-multiply");
+
+  free(x); free(w); free(wq); free(ws); free(xq); free(xs);
+  free(got); free(want); free(wdeq); free(xdeq);
+}
+
+static void test_q4(void) {
+  printf("matmul_q4\n");
+  const int n = 576, d = 64, group = 64;
+  float *x = malloc((size_t)n * 4);
+  float *w = malloc((size_t)n * d * 4);
+  uint8_t *wq = malloc((size_t)n * d / 2);
+  uint16_t *ws = malloc((size_t)d * (n / group) * 2);
+  float *wdeq = malloc((size_t)n * d * 4);
+  int8_t *xq = malloc((size_t)n);
+  float *xs = malloc((size_t)(n / group) * 4);
+  float *got = malloc((size_t)d * 4);
+  float *want = malloc((size_t)d * 4);
+  float *xdeq = malloc((size_t)n * 4);
+
+  for (int i = 0; i < n; i++) x[i] = frand();
+  for (long i = 0; i < (long)n * d; i++) w[i] = frand() * 0.05f;
+
+  make_q4(w, n, d, group, wq, ws, wdeq);
+  quantize_row(xq, xs, x, n, group);
+  matmul_q4(got, xq, xs, wq, ws, n, d, group);
+
+  for (int g = 0; g < n / group; g++) {
+    for (int j = 0; j < group; j++) {
+      xdeq[g * group + j] = (float)xq[g * group + j] * xs[g];
+    }
+  }
+  matmul_f32(want, xdeq, wdeq, n, d);
+
+  double worst = 0.0;
+  for (int i = 0; i < d; i++) {
+    const double scale = fabs(want[i]) > 1e-4 ? fabs(want[i]) : 1e-4;
+    const double rel = fabs(got[i] - want[i]) / scale;
+    if (rel > worst) worst = rel;
+  }
+  printf("    worst relative error vs dequantize-then-f32: %.2e\n", worst);
+  check(worst < 1e-4, "equals dequantize-then-multiply");
+
+  /* The nibble layout is load-bearing for the SIMD path: element j and j+half
+   * share byte j. Verify the kernel reads it that way by planting a single
+   * non-zero weight in the high nibble of byte 0 -- i.e. element `half` -- and
+   * checking it lands there and nowhere else. */
+  memset(wq, (uint8_t)(8 | (8 << 4)), (size_t)n * d / 2); /* all zeros after bias */
+  for (long i = 0; i < (long)d * (n / group); i++) ws[i] = float_to_half(1.0f);
+  wq[0] = (uint8_t)(8 | ((8 + 1) << 4)); /* element half of group 0 = +1 */
+  for (int i = 0; i < n; i++) xq[i] = 0;
+  for (int g = 0; g < n / group; g++) xs[g] = 1.0f;
+  xq[group / 2] = 100; /* only element `half` is non-zero */
+  matmul_q4(got, xq, xs, wq, ws, n, d, group);
+  check(fabsf(got[0] - 100.0f) < 1e-3f, "high nibble of byte j is element j+group/2");
+
+  xq[group / 2] = 0;
+  xq[0] = 100; /* low nibble position, whose weight is zero */
+  matmul_q4(got, xq, xs, wq, ws, n, d, group);
+  check(fabsf(got[0]) < 1e-3f, "low nibble of byte j is element j");
+
+  free(x); free(w); free(wq); free(ws); free(wdeq);
+  free(xq); free(xs); free(got); free(want); free(xdeq);
+}
+
+static void test_expf(void) {
+  printf("hslm_expf vs libm\n");
+  /* The freestanding wasm build has no libm, so this polynomial IS expf there --
+   * and since M10 the native build uses it too, so that the two targets agree
+   * bit-for-bit. Accuracy is therefore checked here rather than assumed. */
+  /* Two ranges, because they have very different stakes.
+   *
+   * [-20, 0] is where softmax actually operates: the max is subtracted first, so
+   * every argument is <= 0, and anything below about -20 contributes nothing to a
+   * normalized distribution. SiLU sees a wider range but is equally forgiving.
+   *
+   * The wide range is reported for completeness. Error grows toward the tails, and
+   * at x = -40 exp(x) is about 5e-18 -- a 2e-6 relative error there is five orders
+   * of magnitude below this model's own quantization noise, which sits near 1.3e-1
+   * (18 dB SQNR). Holding the polynomial to 1e-6 across [-40, 40] would be
+   * measuring something that cannot matter. */
+  /* Tolerances in units of fp32 epsilon (ulps) rather than round decimals, because
+   * that is the scale the answer actually lives on: a degree-6 polynomial cannot do
+   * better than a few ulps, and picking "1e-6" was choosing a number that looked
+   * tidy rather than one that meant anything. 20 ulps in the softmax range and 40
+   * across the tails are both far below the 4-bit model's ~1.3e-1 quantization
+   * noise. */
+  const double EPS = 1.1920929e-7;
+  struct { double lo, hi, limit; const char *what; } ranges[] = {
+      {-20.0, 0.0, 20 * EPS, "within 20 ulps of libm over [-20, 0], where softmax lives"},
+      {-40.0, 40.0, 40 * EPS, "within 40 ulps of libm over [-40, 40]"},
+  };
+  for (unsigned r = 0; r < sizeof ranges / sizeof ranges[0]; r++) {
+    double worst = 0.0;
+    float worst_at = 0.0f;
+    for (double x = ranges[r].lo; x <= ranges[r].hi; x += 0.001) {
+      const float got = hslm_expf((float)x);
+      const float want = expf((float)x);
+      const double rel = fabs((double)got - (double)want) /
+                         (fabs((double)want) > 1e-30 ? fabs((double)want) : 1e-30);
+      if (rel > worst) { worst = rel; worst_at = (float)x; }
+    }
+    printf("    [%6.1f, %5.1f] worst %.2e = %4.1f ulps at x = %.3f\n",
+           ranges[r].lo, ranges[r].hi, worst, worst / 1.1920929e-7, worst_at);
+    check(worst < ranges[r].limit, ranges[r].what);
+  }
+
+  /* The subnormal window, which the two ranges above walk straight past.
+   *
+   * expf's result goes subnormal at x = -87.34 and only reaches zero at -103.97, and
+   * everything in between used to come back LARGE -- exp(-103.9) was 7.9e31 -- because
+   * the exponent field was written from a negative integer. Nothing above catches it:
+   * [-40, 40] stops short of the window and "expf(-1000) flushes to zero" starts
+   * past it. `ask` walked right into it, because dividing the logits by temperature
+   * 0.4 puts softmax's arguments three times further from the max.
+   *
+   * What is asserted here is not accuracy. A subnormal has too few mantissa bits to be
+   * accurate about, and libm itself is only near-correctly-rounded down here. It is
+   * SIGN, MAGNITUDE and MONOTONICITY: exp is never negative, exp of a large negative
+   * number is tiny, and it never grows as its argument shrinks. All three were
+   * violated, and the sign is the one worth naming first -- the shift set the sign bit,
+   * so exp(-103.9) was -8.7e31, and a bound written as `got <= 1.9e-35` would have
+   * called that a pass. */
+  {
+    int negative = 0, not_monotone = 0, too_large = 0, off = 0;
+    double worst = 0.0;
+    float worst_at = 0.0f;
+    float prev = hslm_expf(-80.0f);
+    for (double x = -80.01; x >= -110.0; x -= 0.01) {
+      const float got = hslm_expf((float)x);
+      const float want = expf((float)x);
+      if (got < 0.0f) negative++;
+      if (got > prev) not_monotone++;
+      prev = got;
+      /* exp(-80) is already 1.8e-35, so nothing in this window may exceed it in
+       * MAGNITUDE -- signed, a wrong answer can be arbitrarily far below the bound. */
+      if (!(fabsf(got) <= 1.9e-35f)) too_large++;
+      /* Absolute, not relative: 4 subnormal ulps plus a slack proportional to the
+       * value itself, which is the only tolerance that means anything below FLT_MIN. */
+      const double tol = 4 * 1.4012985e-45 + 1e-5 * (double)want;
+      const double err = fabs((double)got - (double)want);
+      if (err > tol) off++;
+      /* Reported as a fraction of the tolerance, not as an absolute number: the
+       * values here span 1.8e-35 down to 1e-45, so a raw worst-case would only ever
+       * report the top of the range and say nothing about the subnormals. */
+      if (err / tol > worst) { worst = err / tol; worst_at = (float)x; }
+    }
+    printf("    [-110.0, -80.0] worst %.2f of tolerance at x = %.3f (subnormal window)\n",
+           worst, worst_at);
+    check(negative == 0, "never negative across the subnormal window");
+    check(not_monotone == 0, "monotonically non-increasing across the subnormal window");
+    check(too_large == 0, "never exceeds exp(-80) in magnitude anywhere below -80");
+    check(off == 0, "within 4 subnormal ulps of libm across the subnormal window");
+  }
+
+  /* Edge cases the engine actually hits: softmax subtracts the max so x <= 0, and
+   * SiLU evaluates expf(-v) for v of either sign. */
+  check(hslm_expf(0.0f) == 1.0f, "expf(0) is exactly 1");
+  check(hslm_expf(-1000.0f) == 0.0f, "large negative flushes to zero");
+  check(hslm_expf(1000.0f) > 1e30f, "large positive overflows to inf");
+  check(hslm_expf(-0.0f) == 1.0f, "expf(-0) is 1");
+  /* Spot checks either side of the exponent-field boundaries, named explicitly so a
+   * regression reads as "the subnormal window is broken again" rather than as a
+   * statistic. */
+  check(hslm_expf(-88.0f) > 0.0f && hslm_expf(-88.0f) < 1e-38f,
+        "expf(-88) is a small subnormal, not a large number");
+  check(hslm_expf(-103.0f) > 0.0f && hslm_expf(-103.0f) < 1e-44f,
+        "expf(-103) is the smallest kind of subnormal");
+  /* The top clamp writes 255 into the exponent field if the scale is applied in one
+   * step, so the largest in-range argument must still come back finite. */
+  check(isfinite(hslm_expf(88.7228f)) && hslm_expf(88.7228f) > 3.0e38f,
+        "expf at the overflow boundary stays finite");
+  /* NaN must propagate rather than becoming a number. */
+  const float nan = 0.0f / 0.0f;
+  check(hslm_expf(nan) != hslm_expf(nan), "NaN propagates");
+}
+
+int main(void) {
+  test_expf();
+  test_half();
+  test_f32();
+  test_quantize_row();
+  test_q8();
+  test_q4();
+  printf("\n%s\n", g_failures ? "FAILED" : "all matmul checks passed");
+  return g_failures ? 1 : 0;
+}

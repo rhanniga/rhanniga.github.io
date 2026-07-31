@@ -1,0 +1,7 @@
+# index.html is a terminal emulator and contains no resume text on purpose --
+# the data lives in resume.json and is rendered at runtime. So the document view
+# is the crawlable surface, and it is the one worth indexing.
+User-agent: *
+Allow: /
+
+Sitemap: https://www.hannigan.sh/sitemap.xml
