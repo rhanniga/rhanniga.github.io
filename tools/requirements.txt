@@ -1,0 +1,8 @@
+# Conversion dependencies. Deliberately NO torch: keeping it out of this path
+# means the converter runs anywhere, and quantizing is just numpy.
+numpy>=2.0
+huggingface_hub>=0.24
+
+# Note: NOT safetensors. Its numpy backend rejects bfloat16, which is how these
+# weights are stored, so convert.py parses the container itself -- roughly 25
+# lines, and bf16 -> fp32 is an exact bit shift.
