@@ -324,9 +324,31 @@ export class Terminal {
    * breaks copy entirely.
    */
   #focusUnlessSelecting() {
+    // Already ours: nothing to steal, and nothing to inspect. See
+    // #clearSelection for why touching the selection in this state is unsafe.
+    if (document.activeElement === this.#kbd) return;
     const sel = window.getSelection();
     if (sel !== null && !sel.isCollapsed) return;
     this.focus();
+  }
+
+  /**
+   * Drop the document selection -- but never while the keyboard sink owns it.
+   *
+   * Chrome and Safari expose a focused <textarea>'s *own* internal selection
+   * through `window.getSelection()`; Firefox, per spec, does not. So calling
+   * removeAllRanges() with the sink focused does not clear a stray highlight --
+   * it destroys the caret the browser is about to insert into. The keystroke is
+   * dropped, no `input` event fires, and typing is dead in every engine except
+   * Firefox.
+   *
+   * The guard is on activeElement rather than on the selection's anchorNode:
+   * the sink's inner editor lives in a shadow tree, so the node is retargeted
+   * and cannot be identified reliably from here.
+   */
+  #clearSelection() {
+    if (document.activeElement === this.#kbd) return;
+    window.getSelection()?.removeAllRanges();
   }
 
   /* ── Cursor blink ────────────────────────────────────────────────────── */
@@ -429,7 +451,7 @@ export class Terminal {
         if (navigator.clipboard !== undefined) {
           ev.preventDefault();
           void navigator.clipboard.writeText(picked).catch(() => {});
-          sel?.removeAllRanges();
+          this.#clearSelection();
         }
         // Without the Clipboard API, fall through to the browser's own copy.
         return;
@@ -460,7 +482,7 @@ export class Terminal {
     // real terminal inserts the character. Refusing to focus would instead make
     // the keyboard appear dead until they clicked, which reads as broken.
     if (isPrintable(ev)) {
-      window.getSelection()?.removeAllRanges();
+      this.#clearSelection();
       this.focus();
     }
   }
