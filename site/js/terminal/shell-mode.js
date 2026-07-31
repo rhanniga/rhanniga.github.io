@@ -9,6 +9,8 @@ import { LineBuffer } from "./line-buffer.js";
 import { History } from "./history.js";
 import { inputPrompt, echoPrompt } from "./prompt.js";
 import { ContinuationMode } from "./continuation-mode.js";
+import { RunningMode } from "./running-mode.js";
+import { applyEdit, applyScroll } from "./editing.js";
 import { tokenize, describeError } from "../shell/tokenize.js";
 import { dispatch } from "../shell/dispatch.js";
 import { EXIT } from "../shell/env.js";
@@ -35,8 +37,6 @@ export class ShellMode {
   buffer = new LineBuffer();
 
   /** @type {ShellDeps} */ #deps;
-  /** In-flight command, so Ctrl+C can abort it. @type {AbortController | null} */
-  #running = null;
   /** Set after a Tab that could not extend the line, so a second Tab lists. */
   #tabbedOnce = false;
 
@@ -70,6 +70,12 @@ export class ShellMode {
     // Any key that is not Tab breaks a completion sequence.
     if (ev.action !== "tab" && ev.action !== "tab-back") this.#tabbedOnce = false;
 
+    if (applyEdit(b, ev.action)) {
+      ctx.term.renderInput();
+      return;
+    }
+    if (applyScroll(ev.action, ctx.term)) return;
+
     switch (ev.action) {
       case "enter":
         this.#submit(ctx);
@@ -91,31 +97,14 @@ export class ShellMode {
         break;
       }
 
-      case "backspace": b.deleteBackward(); break;
-      case "delete": b.deleteForward(); break;
-      case "left": b.moveLeft(); break;
-      case "right": b.moveRight(); break;
-      case "home": b.moveHome(); break;
-      case "end": b.moveEnd(); break;
-      case "word-left": b.moveWordLeft(); break;
-      case "word-right": b.moveWordRight(); break;
-      case "kill-to-start": b.killToStart(); break;
-      case "kill-to-end": b.killToEnd(); break;
-      case "kill-word": b.killWordBackward(); break;
-      case "yank": b.yank(); break;
-
       case "clear":
         ctx.term.clear();
         return;
 
       case "interrupt":
-        // Abort a running command if there is one; otherwise abandon the line. A
-        // real shell echoes ^C and leaves what you typed on screen rather than
-        // erasing it.
-        if (this.#running !== null) {
-          this.#running.abort();
-          this.#running = null;
-        }
+        // Abandon the line. A real shell echoes ^C and leaves what you typed on
+        // screen rather than erasing it. (A *running* command is aborted by
+        // RunningMode, which sits above this one while one is in flight.)
         ctx.out.row([...echoPrompt(), c(b.value), c("^C", "dim")]);
         b.clear();
         history.reset();
@@ -131,12 +120,10 @@ export class ShellMode {
         b.deleteForward();
         break;
 
-      case "page-up": ctx.term.scrollPages(-1); return;
-      case "page-down": ctx.term.scrollPages(1); return;
-      case "scroll-top": ctx.term.scrollToTop(); return;
-      case "scroll-bottom": ctx.term.scrollToBottom(); return;
-
       case "none":
+        break;
+
+      default:
         break;
     }
 
@@ -253,7 +240,13 @@ export class ShellMode {
    */
   async #runArgv(argv, ctx) {
     const controller = new AbortController();
-    this.#running = controller;
+
+    // A running mode sits above the shell for the command's lifetime: no prompt,
+    // input swallowed, Ctrl+C aborts. It is removed *by reference* rather than
+    // popped, because a command may itself push a mode that outlives it -- which
+    // is exactly what `ask -i` does.
+    const running = new RunningMode({ abort: controller, label: argv[0] });
+    ctx.term.pushMode(running);
 
     const status = await dispatch(
       argv,
@@ -271,7 +264,7 @@ export class ShellMode {
       controller.signal,
     );
 
-    this.#running = null;
+    ctx.term.removeMode(running);
     this.#deps.env.setStatus(status);
     ctx.term.renderInput();
   }

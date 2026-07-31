@@ -93,6 +93,27 @@ export class ModeStack {
   }
 
   /**
+   * Remove a specific mode wherever it sits in the stack.
+   *
+   * Needed because `ask -i` pushes a repl mode from *inside* a running command,
+   * so by the time the command finishes the running mode is no longer on top.
+   * Popping the top would tear down the repl the command just created.
+   *
+   * @param {TerminalMode} mode
+   * @returns {boolean} whether it was found and removed
+   */
+  remove(mode) {
+    const i = this.#stack.indexOf(mode);
+    if (i < 0) return false;
+    // Never leave the stack empty; there must always be somewhere to route keys.
+    if (this.#stack.length <= 1) return false;
+    this.#stack.splice(i, 1);
+    mode.onExit?.(this.#ctx);
+    this.#onChange();
+    return true;
+  }
+
+  /**
    * @param {string} id
    * @returns {TerminalMode | undefined}
    */

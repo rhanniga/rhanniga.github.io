@@ -33,11 +33,14 @@ const BLINK_RESUME_MS = 500;
  * @typedef {object} TerminalApi
  * @property {(line: Line) => void} row
  * @property {(lines: Line[]) => void} rows
+ * @property {(s: string, cls?: import('../render/chunk.js').TokenClass) => void} write
  * @property {(s?: string, cls?: import('../render/chunk.js').TokenClass) => void} writeln
+ * @property {() => import('./writer.js').TransientRow} transientRow
  * @property {() => void} clear
  * @property {() => number} cols
  * @property {(mode: TerminalMode) => void} pushMode
  * @property {() => void} popMode
+ * @property {(mode: TerminalMode) => void} removeMode
  * @property {() => void} renderInput
  * @property {() => void} scrollToBottom
  * @property {() => void} scrollToTop
@@ -128,7 +131,9 @@ export class Terminal {
     return {
       row: (line) => this.#writer.row(line),
       rows: (lines) => this.#writer.rows(lines),
+      write: (s, cls) => this.#writer.write(s, cls),
       writeln: (s, cls) => this.#writer.writeln(s, cls),
+      transientRow: () => this.#writer.beginTransientRow(),
       clear: () => {
         this.#writer.clear();
         this.renderInput();
@@ -137,6 +142,9 @@ export class Terminal {
       pushMode: (mode) => this.#modes.push(mode),
       popMode: () => {
         this.#modes.pop();
+      },
+      removeMode: (mode) => {
+        this.#modes.remove(mode);
       },
       renderInput: () => this.renderInput(),
       scrollToBottom: () => this.#writer.scrollToBottom(),

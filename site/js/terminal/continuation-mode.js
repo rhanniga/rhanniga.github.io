@@ -11,6 +11,7 @@ import { c } from "../render/chunk.js";
 import { LineBuffer } from "./line-buffer.js";
 import { continuationPrompt } from "./prompt.js";
 import { tokenize } from "../shell/tokenize.js";
+import { applyEdit, applyScroll } from "./editing.js";
 
 /** @typedef {import('./modes.js').TerminalMode} TerminalMode */
 /** @typedef {import('./modes.js').ModeContext} ModeContext */
@@ -57,6 +58,12 @@ export class ContinuationMode {
   onKey(ev, ctx) {
     const b = this.buffer;
 
+    if (applyEdit(b, ev.action)) {
+      ctx.term.renderInput();
+      return;
+    }
+    if (applyScroll(ev.action, ctx.term)) return;
+
     switch (ev.action) {
       case "enter": {
         const line = b.value;
@@ -94,34 +101,19 @@ export class ContinuationMode {
         b.deleteForward();
         break;
 
-      case "backspace": b.deleteBackward(); break;
-      case "delete": b.deleteForward(); break;
-      case "left": b.moveLeft(); break;
-      case "right": b.moveRight(); break;
-      case "home": b.moveHome(); break;
-      case "end": b.moveEnd(); break;
-      case "word-left": b.moveWordLeft(); break;
-      case "word-right": b.moveWordRight(); break;
-      case "kill-to-start": b.killToStart(); break;
-      case "kill-to-end": b.killToEnd(); break;
-      case "kill-word": b.killWordBackward(); break;
-      case "yank": b.yank(); break;
-
       case "clear":
         ctx.term.clear();
         return;
-
-      case "page-up": ctx.term.scrollPages(-1); return;
-      case "page-down": ctx.term.scrollPages(1); return;
-      case "scroll-bottom": ctx.term.scrollToBottom(); return;
 
       // No history or completion inside a continuation -- bash has none either.
       case "up":
       case "down":
       case "tab":
       case "tab-back":
-      case "scroll-top":
       case "none":
+        break;
+
+      default:
         break;
     }
 

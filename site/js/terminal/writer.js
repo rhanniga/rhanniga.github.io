@@ -16,6 +16,14 @@
 /** @typedef {import('../render/chunk.js').Line} Line */
 
 /**
+ * A row that can be rewritten in place, for progress bars and spinners.
+ * @typedef {object} TransientRow
+ * @property {(line: Line) => void} set      replace its contents
+ * @property {() => void} commit             leave it on screen permanently
+ * @property {() => void} discard            remove it entirely
+ */
+
+/**
  * Build the DOM for one chunk.
  * @param {Chunk} ch
  * @returns {Node}
@@ -120,7 +128,15 @@ export class Writer {
         this.#openRow.className = "row";
         this.#frag.appendChild(this.#openRow);
       }
-      this.#openRow.appendChild(renderChunk(cls ? { t: part, c: cls } : { t: part }));
+      // Merge into the preceding text node when there is no styling to apply.
+      // Token streaming calls this once per token, and without coalescing a long
+      // answer becomes hundreds of sibling text nodes in one row.
+      const last = this.#openRow.lastChild;
+      if (cls === undefined && last instanceof Text) {
+        last.appendData(part);
+      } else {
+        this.#openRow.appendChild(renderChunk(cls ? { t: part, c: cls } : { t: part }));
+      }
     }
     this.#schedule();
   }
@@ -189,6 +205,42 @@ export class Writer {
     this.#output.appendChild(this.#frag);
     this.#frag = document.createDocumentFragment();
     if (wasPinned) v.scrollTop = v.scrollHeight;
+  }
+
+  /**
+   * Open the one mutable row.
+   *
+   * Everything else here is append-only, which is what keeps writes O(1) and
+   * selection stable. Progress bars and spinners genuinely need to overwrite
+   * themselves, so they get this single carve-out -- and it is a carve-out rather
+   * than a general "update any row" API precisely so the append-only invariant
+   * stays true everywhere else.
+   *
+   * @returns {TransientRow}
+   */
+  beginTransientRow() {
+    // Commit anything pending first, so the transient row lands after it.
+    this.flush();
+    const row = document.createElement("div");
+    row.className = "row";
+    this.#output.appendChild(row);
+    this.#viewport.scrollTop = this.#viewport.scrollHeight;
+
+    let live = true;
+    return {
+      set: (line) => {
+        if (!live) return;
+        row.replaceChildren(...line.map(renderChunk));
+      },
+      commit: () => {
+        live = false;
+      },
+      discard: () => {
+        if (!live) return;
+        row.remove();
+        live = false;
+      },
+    };
   }
 
   /** Scroll to the bottom regardless of pin state. */

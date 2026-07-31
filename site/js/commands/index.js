@@ -10,6 +10,7 @@
 import { Registry } from "../shell/registry.js";
 import { helpCmd } from "./help.js";
 import { resumeCommands } from "./resume-cmds.js";
+import { askCmd } from "./ask.js";
 import { builtinCommands } from "./builtins.js";
 import { fileCommands } from "./files.js";
 import { themeCommands } from "./theme-cmds.js";
@@ -22,7 +23,7 @@ export function buildRegistry() {
   return new Registry([
     // The resume is the product, so it leads.
     ...resumeCommands,
-    // `ask` slots in here at M6.
+    askCmd,
     helpCmd,
     ...builtinCommands,
     ...fileCommands,
