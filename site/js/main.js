@@ -104,7 +104,7 @@ if (wantsPlain(location.search)) {
       deployed,
       name: loadError === null ? resume.contactInfo.name : "",
       tagline:
-        loadError === null ? "software engineer, postdoctoral fellow, lecturer" : "",
+        loadError === null ? "backend engineering manager who secretly ICs when nobody is looking, i also lecture physics at UT Austin from time to time" : "",
       error: loadError,
     });
 

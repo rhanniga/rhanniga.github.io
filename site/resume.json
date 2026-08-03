@@ -4,14 +4,16 @@
     "phone": "+1 832 465 1323",
     "email": "ryan.p.hannigan@gmail.com",
     "github": "rhanniga",
-    "linkedin": "partoniic",
+    "linkedin": "astrophysiic",
     "website": "hannigan.sh"
   },
   "summaries": [
     {
-      "text": "Software engineer, postdoctoral fellow, and lecturer with over 7 years of experience in the tech industry and academia, specializing in innovative software development and leadership. Proficient in Python and C++, with a proven track record of leading cross-functional teams and pioneering advanced technological solutions at renowned institutions like UT Austin and CERN. Passionate about technology, physics, and teaching.",
+      "text": "Backend engineering manager and physics lecturer with over 10 years of experience in the tech industry and academia, specializing in innovative software development, distributed systems, and leadership. Proficient in Python, Go, and C++, with a proven track record of leading cross-functional teams and pioneering advanced technological solutions at renowned institutions like UT Austin and CERN. Passionate about technology, physics, and teaching.",
       "keywords": [
         "Software Engineer",
+        "Engineering Manager",
+        "Backend Engineer",
         "Postdoctoral Fellow",
         "Lecturer",
         "Python",
@@ -59,6 +61,48 @@
     }
   ],
   "jobs": [
+      {
+        "title": "Backend Engineering Manager",
+      "company": "ProphetX",
+      "location": "Remote",
+      "startDate": "2025-12-08",
+      "endDate": "Present",
+      "bullets": [
+        {
+          "text": "CFTC cutover",
+          "keywords": [
+            "Project Management",
+            "Go",
+            "Engineering Management",
+            "Jira",
+            "Distributed Systems",
+            "Exchange",
+            "PHP",
+            "Python"
+          ]
+        },
+        {
+          "text": "Managed a team of 10 engineers, standups, etc.",
+          "keywords": []
+        },
+        {
+          "text": "B2B integration, money, etc.",
+          "keywords": [
+            "Python"
+          ]
+        },
+        {
+          "text": "Geolocation service, microservice, gRPC, etc.",
+          "keywords": [
+            "GitHub"
+          ]
+        },
+        {
+          "text": "Partner meetings, money, etc.",
+          "keywords": []
+        }
+      ]
+      },
     {
       "title": "Principal Software Engineer",
       "company": "VenHub",
@@ -84,7 +128,7 @@
           "keywords": []
         },
         {
-          "text": "Architected and implemented a multi-threaded robotic control system in Python, decreasing order processing time by over 50% and increasing SKU capacity by 10x",
+          "text": "Architected and implemented a multi-threaded robotic control system in Python, decreasing order processing time by over 50% and increasing SKU capacity by over 10x",
           "keywords": [
             "Python"
           ]
@@ -118,8 +162,12 @@
           ]
         },
         {
-          "text": "Taught full semester of PHY302K, an introductory physics course for STEM majors with over 100 students",
-          "keywords": []
+          "text": "Taught multiple semesters of PHY302K, an introductory physics course for STEM majors with over 100 students",
+          "keywords": [
+          "Teaching",
+          "Leadership",
+          "Management"
+          ]
         },
         {
           "text": "Mentored multiple graduate and undergraduate students, providing regular guidance on research goals.",
@@ -182,6 +230,14 @@
     },
     {
       "name": "C++",
+      "experience": "experienced"
+    },
+    {
+      "name": "Go",
+      "experience": "experienced"
+    },
+    {
+      "name": "Project Management",
       "experience": "experienced"
     },
     {
