@@ -28,9 +28,11 @@ export const CARDS = [
     "id": "summary-0",
     "kind": "summary",
     "title": "Summary",
-    "text": "Software engineer, postdoctoral fellow, and lecturer with over 7 years of experience in the tech industry and academia, specializing in innovative software development and leadership. Proficient in Python and C++, with a proven track record of leading cross-functional teams and pioneering advanced technological solutions at renowned institutions like UT Austin and CERN. Passionate about technology, physics, and teaching.",
+    "text": "Backend engineering manager and physics lecturer with over 10 years of experience in the tech industry and academia, specializing in innovative software development, distributed systems, and leadership. Proficient in Python, Go, and C++, with a proven track record of leading cross-functional teams and pioneering advanced technological solutions at renowned institutions like UT Austin and CERN. Passionate about technology, physics, and teaching.",
     "keywords": [
       "Software Engineer",
+      "Engineering Manager",
+      "Backend Engineer",
       "Postdoctoral Fellow",
       "Lecturer",
       "Python",
@@ -48,6 +50,86 @@ export const CARDS = [
   },
   {
     "id": "job-0",
+    "kind": "job",
+    "title": "Backend Engineering Manager, ProphetX",
+    "meta": "Remote, 2025-present",
+    "text": "Backend Engineering Manager, ProphetX (Remote, 2025-present)",
+    "keywords": [
+      "Backend Engineering Manager",
+      "ProphetX",
+      "Remote"
+    ],
+    "see": "experience",
+    "aliases": [
+      "work",
+      "job",
+      "role",
+      "position",
+      "employer",
+      "career",
+      "experience"
+    ]
+  },
+  {
+    "id": "job-0-bullet-0",
+    "kind": "bullet",
+    "title": "Backend Engineering Manager, ProphetX",
+    "meta": "Remote, 2025-present",
+    "text": "CFTC cutover",
+    "keywords": [
+      "Project Management",
+      "Go",
+      "Engineering Management",
+      "Jira",
+      "Distributed Systems",
+      "Exchange",
+      "PHP",
+      "Python"
+    ],
+    "see": "experience"
+  },
+  {
+    "id": "job-0-bullet-1",
+    "kind": "bullet",
+    "title": "Backend Engineering Manager, ProphetX",
+    "meta": "Remote, 2025-present",
+    "text": "Managed a team of 10 engineers, standups, etc.",
+    "keywords": [],
+    "see": "experience"
+  },
+  {
+    "id": "job-0-bullet-2",
+    "kind": "bullet",
+    "title": "Backend Engineering Manager, ProphetX",
+    "meta": "Remote, 2025-present",
+    "text": "B2B integration, money, etc.",
+    "keywords": [
+      "Python"
+    ],
+    "see": "experience"
+  },
+  {
+    "id": "job-0-bullet-3",
+    "kind": "bullet",
+    "title": "Backend Engineering Manager, ProphetX",
+    "meta": "Remote, 2025-present",
+    "text": "Geolocation service, microservice, gRPC, etc.",
+    "keywords": [
+      "GitHub"
+    ],
+    "see": "experience"
+  },
+  {
+    "id": "job-0-bullet-4",
+    "kind": "bullet",
+    "title": "Backend Engineering Manager, ProphetX",
+    "meta": "Remote, 2025-present",
+    "text": "Partner meetings, money, etc.",
+    "keywords": [],
+    "see": "experience"
+  },
+  {
+    "id": "job-1",
     "kind": "job",
     "title": "Principal Software Engineer, VenHub",
     "meta": "Pasadena, CA, 2023-2025",
@@ -69,7 +151,7 @@ export const CARDS = [
     ]
   },
   {
-    "id": "job-0-bullet-0",
+    "id": "job-1-bullet-0",
     "kind": "bullet",
     "title": "Principal Software Engineer, VenHub",
     "meta": "Pasadena, CA, 2023-2025",
@@ -87,7 +169,7 @@ export const CARDS = [
     "see": "experience"
   },
   {
-    "id": "job-0-bullet-1",
+    "id": "job-1-bullet-1",
     "kind": "bullet",
     "title": "Principal Software Engineer, VenHub",
     "meta": "Pasadena, CA, 2023-2025",
@@ -96,18 +178,18 @@ export const CARDS = [
     "see": "experience"
   },
   {
-    "id": "job-0-bullet-2",
+    "id": "job-1-bullet-2",
     "kind": "bullet",
     "title": "Principal Software Engineer, VenHub",
     "meta": "Pasadena, CA, 2023-2025",
-    "text": "Architected and implemented a multi-threaded robotic control system in Python, decreasing order processing time by over 50% and increasing SKU capacity by 10x",
+    "text": "Architected and implemented a multi-threaded robotic control system in Python, decreasing order processing time by over 50% and increasing SKU capacity by over 10x",
     "keywords": [
       "Python"
     ],
     "see": "experience"
   },
   {
-    "id": "job-0-bullet-3",
+    "id": "job-1-bullet-3",
     "kind": "bullet",
     "title": "Principal Software Engineer, VenHub",
     "meta": "Pasadena, CA, 2023-2025",
@@ -118,7 +200,7 @@ export const CARDS = [
     "see": "experience"
   },
   {
-    "id": "job-0-bullet-4",
+    "id": "job-1-bullet-4",
     "kind": "bullet",
     "title": "Principal Software Engineer, VenHub",
     "meta": "Pasadena, CA, 2023-2025",
@@ -127,7 +209,7 @@ export const CARDS = [
     "see": "experience"
   },
   {
-    "id": "job-1",
+    "id": "job-2",
     "kind": "job",
     "title": "Lecturer + Postdoctoral Fellow, UT Austin",
     "meta": "Austin, TX, 2023-present",
@@ -149,7 +231,7 @@ export const CARDS = [
     ]
   },
   {
-    "id": "job-1-bullet-0",
+    "id": "job-2-bullet-0",
     "kind": "bullet",
     "title": "Lecturer + Postdoctoral Fellow, UT Austin",
     "meta": "Austin, TX, 2023-present",
@@ -163,16 +245,20 @@ export const CARDS = [
     "see": "experience"
   },
   {
-    "id": "job-1-bullet-1",
+    "id": "job-2-bullet-1",
     "kind": "bullet",
     "title": "Lecturer + Postdoctoral Fellow, UT Austin",
     "meta": "Austin, TX, 2023-present",
-    "text": "Taught full semester of PHY302K, an introductory physics course for STEM majors with over 100 students",
-    "keywords": [],
+    "text": "Taught multiple semesters of PHY302K, an introductory physics course for STEM majors with over 100 students",
+    "keywords": [
+      "Teaching",
+      "Leadership",
+      "Management"
+    ],
     "see": "experience"
   },
   {
-    "id": "job-1-bullet-2",
+    "id": "job-2-bullet-2",
     "kind": "bullet",
     "title": "Lecturer + Postdoctoral Fellow, UT Austin",
     "meta": "Austin, TX, 2023-present",
@@ -181,7 +267,7 @@ export const CARDS = [
     "see": "experience"
   },
   {
-    "id": "job-1-bullet-3",
+    "id": "job-2-bullet-3",
     "kind": "bullet",
     "title": "Lecturer + Postdoctoral Fellow, UT Austin",
     "meta": "Austin, TX, 2023-present",
@@ -190,7 +276,7 @@ export const CARDS = [
     "see": "experience"
   },
   {
-    "id": "job-1-bullet-4",
+    "id": "job-2-bullet-4",
     "kind": "bullet",
     "title": "Lecturer + Postdoctoral Fellow, UT Austin",
     "meta": "Austin, TX, 2023-present",
@@ -201,7 +287,7 @@ export const CARDS = [
     "see": "experience"
   },
   {
-    "id": "job-2",
+    "id": "job-3",
     "kind": "job",
     "title": "Software Engineer, ALICE at CERN",
     "meta": "Meyrin, Switzerland, 2018-2022",
@@ -223,7 +309,7 @@ export const CARDS = [
     ]
   },
   {
-    "id": "job-2-bullet-0",
+    "id": "job-3-bullet-0",
     "kind": "bullet",
     "title": "Software Engineer, ALICE at CERN",
     "meta": "Meyrin, Switzerland, 2018-2022",
@@ -234,7 +320,7 @@ export const CARDS = [
     "see": "experience"
   },
   {
-    "id": "job-2-bullet-1",
+    "id": "job-3-bullet-1",
     "kind": "bullet",
     "title": "Software Engineer, ALICE at CERN",
     "meta": "Meyrin, Switzerland, 2018-2022",
@@ -246,7 +332,7 @@ export const CARDS = [
     "see": "experience"
   },
   {
-    "id": "job-2-bullet-2",
+    "id": "job-3-bullet-2",
     "kind": "bullet",
     "title": "Software Engineer, ALICE at CERN",
     "meta": "Meyrin, Switzerland, 2018-2022",
@@ -340,12 +426,14 @@ export const CARDS = [
     "id": "skills",
     "kind": "skills",
     "title": "Skills",
-    "text": "expert: Python, Problem Solving, Leadership; experienced: C++, Data Science, Bash, Teaching; skilled: Rust, Machine Learning, C, TypeScript",
+    "text": "expert: Python, Problem Solving, Leadership; experienced: C++, Go, Project Management, Data Science, Bash, Teaching; skilled: Rust, Machine Learning, C, TypeScript",
     "keywords": [
       "Python",
       "Problem Solving",
       "Leadership",
       "C++",
+      "Go",
+      "Project Management",
       "Data Science",
       "Bash",
       "Teaching",
