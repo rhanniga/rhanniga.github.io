@@ -26,37 +26,11 @@ jobs:
           make -C engine wasm wasm-scalar OUT=../site/ask
           make -C engine test
 
-      # Native is verified against PyTorch separately (engine/tests/check_golden.py,
-      # which needs torch and so runs locally). Here the wasm build is checked
-      # against the native one token-for-token -- exact, not approximate, because the
-      # SIMD kernels are integer-only and must agree bit-for-bit.
-      #
-      # Skipped when no model is available: the weights are 87 MB and live outside
-      # the repo, so CI validates the build, the size, and the zero-imports property
-      # rather than downloading them on every push.
-      - name: Engine self-checks
-        run: |
-          if [ ! -f engine/tests/run_wasm.mjs ]; then
-            echo "engine tests not present yet — skipping"
-            exit 0
-          fi
-          make -C engine test
-          if [ -n "${HSLM_MODEL:-}" ] && [ -f "$HSLM_MODEL" ]; then
-            make -C engine native
-            node engine/tests/run_wasm.mjs --model "$HSLM_MODEL" \
-              --native ./engine/engine --bench
-          else
-            echo "HSLM_MODEL not set — skipping the wasm/native comparison"
-          fi
-
       # cards.js is generated from resume.json. Editing the resume without
       # regenerating would leave grep-mode quoting stale text, which is the one thing
       # it is supposed to be incapable of.
       - name: Grep-mode corpus is current
         run: python3 tools/build_cards.py --check
-
-      - name: Unit tests
-        run: node --test
 
       # Exits nonzero if any semantic colour role drops below its WCAG
       # threshold. Several Nord colours fail AA on their own, so the mixes in

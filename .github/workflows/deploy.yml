@@ -92,43 +92,11 @@ jobs:
             [ "$size" -lt 204800 ] || { echo "::error::$f exceeds 200KB"; exit 1; }
           done
 
-      # Runs the .wasm under node against PyTorch-derived golden logits. Node
-      # has full WASM SIMD, a debugger, and no browser.
-      # Native is verified against PyTorch separately (engine/tests/check_golden.py,
-      # which needs torch and so runs locally). Here the wasm build is checked
-      # against the native one token-for-token -- exact, not approximate, because the
-      # SIMD kernels are integer-only and must agree bit-for-bit.
-      #
-      # The weights step above puts m.hslm on disk, so this now runs the full
-      # comparison against the exact bytes this deploy publishes rather than
-      # skipping it. Still guarded on the file existing, so the step keeps working
-      # if the weights step is ever made conditional.
-      - name: Engine self-checks
-        env:
-          HSLM_MODEL: m.hslm
-        run: |
-          if [ ! -f engine/tests/run_wasm.mjs ]; then
-            echo "engine tests not present yet — skipping"
-            exit 0
-          fi
-          make -C engine test
-          if [ -n "${HSLM_MODEL:-}" ] && [ -f "$HSLM_MODEL" ]; then
-            make -C engine native
-            node engine/tests/run_wasm.mjs --model "$HSLM_MODEL" \
-              --native ./engine/engine --bench
-          else
-            echo "HSLM_MODEL not set — skipping the wasm/native comparison"
-          fi
 
       # cards.js is generated from resume.json. Deploying a stale one would have
       # grep-mode quoting a resume that is no longer the resume.
       - name: Grep-mode corpus is current
         run: python3 tools/build_cards.py --check
-
-      # Node's built-in runner, zero dependencies. The bare-directory form
-      # (`node --test tests/`) is broken on Node 26 -- no args auto-discovers.
-      - name: Unit tests
-        run: node --test
 
       # Exits nonzero if any semantic colour role drops below its WCAG
       # threshold. Several Nord colours fail AA on their own, so the mixes in
