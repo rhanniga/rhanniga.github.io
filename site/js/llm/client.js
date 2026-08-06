@@ -101,6 +101,11 @@ export function createWorkerEngine() {
         engine.state = "ready";
       } catch (err) {
         engine.state = "error";
+        // The worker is holding an 87 MB allocation for a load that is not going to
+        // finish, and a retry constructs a fresh one -- so without this, every
+        // cancelled download leaves its worker resident for the life of the tab.
+        worker?.terminate();
+        worker = null;
         throw err;
       }
     },
@@ -211,8 +216,16 @@ export function createWorkerEngine() {
       }
 
       case "error": {
-        const err = new Error(msg.message);
-        /** @type {any} */ (err).code = msg.code;
+        // The worker reports a cancelled load as code `aborted`, which arrives here as
+        // an ordinary Error -- and an ordinary Error from load() is a crash, so Ctrl+C
+        // mid-download used to print `bash: ask: internal error` and exit 1 instead of
+        // 130. Restored to a real AbortError at the boundary, where the shape is known.
+        // `code` is set only on the plain Error: DOMException.code is a legacy
+        // getter with no setter, so assigning to it throws in a module's strict mode.
+        const err =
+          msg.code === "aborted"
+            ? new DOMException(msg.message ?? "Aborted", "AbortError")
+            : Object.assign(new Error(msg.message), { code: msg.code });
         if (msg.id === undefined) {
           loadWaiter?.reject(err);
           loadWaiter = null;

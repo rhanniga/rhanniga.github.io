@@ -12,7 +12,6 @@ import { wrapChunks, indent } from "../render/layout.js";
 import { streamWrapper } from "../render/stream-wrap.js";
 import { RunningMode } from "../terminal/running-mode.js";
 import { ReplMode } from "../terminal/repl-mode.js";
-import { confirm } from "../terminal/confirm-mode.js";
 import { History } from "../terminal/history.js";
 import { askPrompt } from "../terminal/prompt.js";
 import { parseFlags, invalidOptionMessage } from "../shell/flags.js";
@@ -20,13 +19,15 @@ import { resolveEngine, hasSimd } from "../llm/engine.js";
 import { isContactQuestion, redactWord } from "../llm/guard.js";
 import { formatContact, formatGrepAnswer } from "../render/format.js";
 import { grepAnswer } from "../llm/fallback.js";
-import { plan, markLoadStarted, markLoadFinished } from "../llm/capabilities.js";
+import { plan } from "../llm/capabilities.js";
+import { startLoad, isAbortError } from "../llm/loader.js";
 import { EXIT } from "../shell/env.js";
 
 /** @typedef {import('../shell/registry.js').Command} Command */
 /** @typedef {import('../shell/registry.js').CommandContext} CommandContext */
 /** @typedef {import('../llm/types.js').AskEngine} AskEngine */
 /** @typedef {import('../llm/types.js').LoadProgress} LoadProgress */
+/** @typedef {import('../llm/loader.js').LoadTask} LoadTask */
 /** @typedef {import('../render/chunk.js').Line} Line */
 
 /** Guaranteed single-cell in every monospace font, unlike braille spinners. */
@@ -77,129 +78,65 @@ function progressBar(label, received, total, rate, cols) {
 }
 
 /**
- * Load the engine, showing progress, after getting consent for the download.
+ * Watch the background load, showing progress, and wait for it to finish.
+ *
+ * The load is already running by the time this is called -- `ask` starts it the
+ * moment it knows there is an engine, so a download can overlap with the visitor
+ * typing their question rather than beginning after it. Attaching replays the most
+ * recent progress, so this paints a bar that is already part-full when the load has
+ * a head start.
  *
  * @param {CommandContext} ctx
- * @param {AskEngine} engine
- * @param {number} [nCtx] Context override; 0 uses the configured default.
- * @returns {Promise<'ready'|'declined'|'aborted'|'oom'>}
+ * @param {LoadTask} task
+ * @returns {Promise<'ready'|'aborted'|'oom'>}
  */
-async function ensureLoaded(ctx, engine, nCtx = 0) {
-  if (engine.state === "ready") return "ready";
-
-  const cached = await engine.isCached();
-  if (!cached) {
-    // Consent before spending 72 MB of someone's bandwidth. The cost is not
-    // obvious from the command's name, which is exactly why this is here.
-    const saveData =
-      /** @type {{connection?: {saveData?: boolean, effectiveType?: string}}} */ (navigator)
-        .connection;
-    const frugal =
-      saveData?.saveData === true || /^(slow-)?2g$/.test(saveData?.effectiveType ?? "");
-
-    ctx.out([
-      c("ask: ", "dim"),
-      c(engine.info.label),
-      c(` — ${mb(engine.info.bytes)} MB, not cached`, "dim"),
-    ]);
-    if (frugal) {
-      ctx.out([
-        sp(5),
-        c("your connection reports data saving, so this defaults to no", "warn"),
-      ]);
-    }
-
-    const yes = await confirm(
-      ctx.term,
-      [c("     download? ", "dim"), c(frugal ? "[y/N] " : "[Y/n] ", "bright")],
-      { defaultYes: !frugal },
-    );
-    if (!yes) {
-      ctx.out([c("ask: declined — nothing downloaded", "dim")]);
-      return "declined";
-    }
-  }
+async function watchLoad(ctx, task) {
+  if (task.status === "ready") return "ready";
 
   const bar = ctx.term.transientRow();
   let lastPaint = 0;
 
-  // Written before the allocation and cleared after it. If iOS Safari kills the tab
-  // for memory, nothing else runs -- no exception, no unload handler -- so a mark
-  // still present on the next load is the only evidence the crash happened.
-  markLoadStarted();
-
   try {
-    await engine.load({
-      signal: ctx.signal,
-      nCtx,
-      onProgress: (p) => {
-        // Throttled to ~10Hz: repainting per chunk is pure layout thrash.
-        const now = Date.now();
-        if (p.phase === "fetching" && now - lastPaint < 90) return;
-        lastPaint = now;
+    return await task.attach((p) => {
+      // Throttled to ~10Hz: repainting per chunk is pure layout thrash.
+      const now = Date.now();
+      if (p.phase === "fetching" && now - lastPaint < 90) return;
+      lastPaint = now;
 
-        if (p.phase === "fetching") {
-          bar.set(progressBar("  model", p.received, p.total, p.bytesPerSecond, ctx.cols));
-        } else if (p.phase === "prefill") {
-          // The prompt read is the slow part on the real engine, and showing it
-          // as its own phase is what stops a 15s pause looking like a hang.
-          bar.set(progressBar("  reading resume", p.received, p.total, undefined, ctx.cols));
-        } else if (p.phase === "initializing") {
-          bar.set([c("  initializing", "dim")]);
-        }
-      },
-    });
-  } catch (err) {
+      if (p.phase === "fetching") {
+        bar.set(progressBar("  model", p.received, p.total, p.bytesPerSecond, ctx.cols));
+      } else if (p.phase === "prefill") {
+        // The prompt read is the slow part on the real engine, and showing it
+        // as its own phase is what stops a 15s pause looking like a hang.
+        bar.set(progressBar("  reading resume", p.received, p.total, undefined, ctx.cols));
+      } else if (p.phase === "initializing") {
+        bar.set([c("  initializing", "dim")]);
+      }
+    }, ctx.signal);
+  } finally {
     bar.discard();
-    if (isAbortError(err)) {
-      // An abort is not a crash: leaving the mark would make the next `ask` in this
-      // tab default to grep-mode after a deliberate Ctrl+C.
-      markLoadFinished();
-      return "aborted";
-    }
-    if (isOomError(err)) {
-      markLoadFinished();
-      return "oom";
-    }
-    markLoadFinished();
-    throw err;
   }
-
-  markLoadFinished();
-  bar.discard();
-  return "ready";
 }
 
 /**
- * Did this fail for want of memory?
+ * Say what is being fetched, when something is being fetched.
  *
- * Three shapes, because the failure can surface from three layers: the engine's own
- * ML_ERR_OOM, a failed `memory.grow` (which the browser reports as a RangeError), and
- * a rejected allocation inside `ml_alloc`.
+ * This was a y/N confirmation before spending 87 MB of someone's bandwidth. The
+ * confirmation is what made the load blocking -- nothing could start until the
+ * visitor answered, so the download could never overlap with anything -- and it is
+ * gone. The size is still worth stating, so it is still stated.
  *
- * @param {unknown} err
- * @returns {boolean}
+ * @param {CommandContext} ctx
+ * @param {AskEngine} engine
+ * @returns {Promise<void>}
  */
-function isOomError(err) {
-  if (typeof err !== "object" || err === null) return false;
-  const e = /** @type {{name?: string, code?: string, message?: string}} */ (err);
-  if (e.code === "oom") return true;
-  if (e.name === "RangeError") return true;
-  return /out of memory|memory allocation|cannot allocate|ML_ERR_OOM/i.test(
-    e.message ?? "",
-  );
-}
-
-/**
- * @param {unknown} err
- * @returns {boolean}
- */
-function isAbortError(err) {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    /** @type {{name?: string}} */ (err).name === "AbortError"
-  );
+async function announceDownload(ctx, engine) {
+  if (engine.state === "ready" || (await engine.isCached())) return;
+  ctx.out([
+    c("ask: ", "dim"),
+    c(engine.info.label),
+    c(` — ${mb(engine.info.bytes)} MB, not cached`, "dim"),
+  ]);
 }
 
 /**
@@ -364,9 +301,11 @@ export const askCmd = {
     "      --offline       search the resume directly; never load the model",
     "      --force-llm     load the model even when this browser looks unable",
     "",
-    "The first question downloads about 83 MB of quantized weights and asks",
-    "before doing it. They are cached afterwards, and only the first question",
-    "in a session pays the cost of reading the resume.",
+    "Running `ask` starts loading the model in the background: about 83 MB of",
+    "quantized weights, then a read of the resume. With -i the session opens",
+    "immediately and that work happens while you type, so a question asked",
+    "thirty seconds in may have nothing left to wait for. The weights are",
+    "cached afterwards, and only the first question pays for the resume read.",
     "",
     "The model has 135 million parameters. It will get things wrong. For",
     "anything that matters, read `experience` instead.",
@@ -435,8 +374,13 @@ export const askCmd = {
 
     if (interactive) return startRepl(ctx, engine, chosen.nCtx);
 
-    const loaded = await ensureLoaded(ctx, engine, chosen.nCtx);
-    if (loaded === "declined") return EXIT.OK;
+    // Started before the notice is printed and before anything is awaited, so the
+    // fetch is in flight during both. Returns immediately and cannot throw.
+    const task = startLoad(engine, chosen.nCtx);
+
+    await announceDownload(ctx, engine);
+
+    const loaded = await watchLoad(ctx, task);
     if (loaded === "aborted") {
       ctx.out([c("^C", "dim")]);
       return EXIT.INTERRUPTED;
@@ -489,7 +433,29 @@ function answerContactDeterministically(ctx, question) {
  * @returns {number}
  */
 function startRepl(ctx, engine, nCtx = 0) {
+  // Before the header is even printed: the whole point of the session is that the
+  // download runs while the visitor is reading this and typing their first question.
+  const task = startLoad(engine, nCtx);
+
   ctx.out([c("ask: interactive session. ", "dim"), c(engine.info.label, "dim")]);
+  if (task.status !== "ready") {
+    // Said plainly, because it is the reason the session opens instantly and the
+    // reason the first answer will still take a while. The alternative -- silence
+    // until a question is submitted -- would make that wait look like the question's
+    // fault rather than the download's.
+    ctx.rows(
+      indent(
+        wrapChunks(
+          [
+            c(`loading ${mb(engine.info.bytes)} MB of weights in the background — `, "dim"),
+            c("ask away, the first answer waits for it", "dim"),
+          ],
+          ctx.cols - 2,
+        ),
+        2,
+      ),
+    );
+  }
   ctx.rows(
     indent(
       wrapChunks(
@@ -554,7 +520,10 @@ function startRepl(ctx, engine, nCtx = 0) {
           // Same guard as the one-shot path. Without this, `ask -i` would be a
           // way around it.
           if (answerContactDeterministically(sub, line)) return;
-          const loaded = await ensureLoaded(sub, engine, nCtx);
+          // Asked for again per question rather than captured once: a Ctrl+C during
+          // the download cancels that load for good, and this question wants the
+          // replacement, not the corpse.
+          const loaded = await watchLoad(sub, startLoad(engine, nCtx));
           if (loaded === "ready") await streamAnswer(sub, engine, line);
           else if (loaded === "aborted") sub.out([c("^C", "dim")]);
           else if (loaded === "oom") {
