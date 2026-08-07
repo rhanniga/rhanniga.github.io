@@ -14,6 +14,7 @@ import { EXIT } from "../shell/env.js";
 const GROUPS = /** @type {const} */ ([
   ["resume", "the resume"],
   ["ai", "ask me things"],
+  ["tools", "tools"],
   ["shell", "shell"],
   ["misc", "appearance"],
 ]);

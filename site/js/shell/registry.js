@@ -36,7 +36,7 @@
 /**
  * @typedef {object} Command
  * @property {string} name
- * @property {'resume'|'ai'|'shell'|'misc'} group
+ * @property {'resume'|'ai'|'tools'|'shell'|'misc'} group
  * @property {string} summary                    one line, shown by bare `help`
  * @property {string} [usage]
  * @property {string[]} [synopsis]               body for `help <cmd>`

@@ -36,8 +36,13 @@ const BLINK_RESUME_MS = 500;
  * @property {(s: string, cls?: import('../render/chunk.js').TokenClass) => void} write
  * @property {(s?: string, cls?: import('../render/chunk.js').TokenClass) => void} writeln
  * @property {() => import('./writer.js').TransientRow} transientRow
+ * @property {() => import('./writer.js').TransientBlock} transientBlock
  * @property {() => void} clear
  * @property {() => number} cols
+ * @property {(fn: (cols: number) => void) => () => void} onResize
+ *   Subscribe to column-count changes; returns an unsubscribe. Fires only when the
+ *   count actually changes, so a widget can redraw on rotate or window resize
+ *   without polling.
  * @property {(mode: TerminalMode) => void} pushMode
  * @property {() => void} popMode
  * @property {(mode: TerminalMode) => void} removeMode
@@ -135,11 +140,13 @@ export class Terminal {
       write: (s, cls) => this.#writer.write(s, cls),
       writeln: (s, cls) => this.#writer.writeln(s, cls),
       transientRow: () => this.#writer.beginTransientRow(),
+      transientBlock: () => this.#writer.beginTransientBlock(),
       clear: () => {
         this.#writer.clear();
         this.renderInput();
       },
       cols: () => this.#metrics.cols,
+      onResize: (fn) => this.#metrics.onChange(fn),
       pushMode: (mode) => this.#modes.push(mode),
       popMode: () => {
         this.#modes.pop();

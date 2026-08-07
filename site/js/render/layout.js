@@ -269,6 +269,74 @@ export function twoCol(left, right, width, gap = 2) {
 }
 
 /**
+ * Box-drawing glyphs for the widgets that need corners and axes, with an ASCII
+ * fallback.
+ *
+ * Derived from GLYPH.RULE rather than probed separately: metrics.probeFont()
+ * already established whether the active font renders U+2500 as one cell, and
+ * monospace coverage of the Box Drawing block is all-or-nothing in practice. So if
+ * the rule glyph was downgraded to ASCII, everything else here has to be too --
+ * a half-ASCII frame would be worse than either.
+ *
+ * @returns {{h: string, v: string, tl: string, tr: string, bl: string, br: string,
+ *            axisY: string, axisX: string}}
+ */
+export function box() {
+  if (GLYPH.RULE === ASCII_RULE) {
+    return { h: "-", v: "|", tl: "+", tr: "+", bl: "+", br: "+", axisY: "+", axisX: "+" };
+  }
+  return { h: "─", v: "│", tl: "┌", tr: "┐", bl: "└", br: "┘", axisY: "┤", axisX: "┴" };
+}
+
+/**
+ * Pad a line out to an exact cell width.
+ *
+ * The prerequisite for any side-by-side layout: without it the right-hand column
+ * starts wherever the left-hand line happened to end. Over-long lines are returned
+ * untouched rather than truncated -- silently cutting content is worse than a
+ * ragged edge, and the caller chose the width.
+ *
+ * @param {Line} line
+ * @param {number} width
+ * @returns {Line}
+ */
+export function padLine(line, width) {
+  const w = len(line);
+  return w >= width ? line : [...line, sp(width - w)];
+}
+
+/**
+ * Two blocks of lines, laid out as columns.
+ *
+ * Unlike twoCol(), which is about one line's left and right halves, this joins two
+ * independent *blocks* -- the shorter one runs out and its side goes blank while
+ * the longer one continues. Trailing whitespace is trimmed off rows where the right
+ * column has nothing, so copying the widget out of the page does not pick up a
+ * rectangle of spaces.
+ *
+ * @param {Line[]} left
+ * @param {Line[]} right
+ * @param {number} leftWidth
+ * @param {number} [gap]
+ * @returns {Line[]}
+ */
+export function sideBySide(left, right, leftWidth, gap = 2) {
+  /** @type {Line[]} */
+  const out = [];
+  const rows = Math.max(left.length, right.length);
+  for (let i = 0; i < rows; i++) {
+    const l = left[i] ?? [];
+    const r = right[i] ?? [];
+    if (r.length === 0) {
+      out.push(l);
+      continue;
+    }
+    out.push([...padLine(l, leftWidth + gap), ...r]);
+  }
+  return out;
+}
+
+/**
  * A full-width horizontal rule.
  * @param {number} width
  * @param {string} [ch]

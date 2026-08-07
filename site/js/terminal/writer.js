@@ -24,6 +24,14 @@
  */
 
 /**
+ * A whole region that can be rewritten in place, for full-screen-style widgets.
+ * @typedef {object} TransientBlock
+ * @property {(lines: Line[]) => void} set   replace every row in it
+ * @property {() => void} commit             leave the last frame on screen
+ * @property {() => void} discard            remove it entirely
+ */
+
+/**
  * Build the DOM for one chunk.
  * @param {Chunk} ch
  * @returns {Node}
@@ -238,6 +246,51 @@ export class Writer {
       discard: () => {
         if (!live) return;
         row.remove();
+        live = false;
+      },
+    };
+  }
+
+  /**
+   * Open a mutable region of several rows.
+   *
+   * The transient *row* above exists for progress bars; this exists for `rent`,
+   * which redraws a two-column panel on every keystroke. Same carve-out from the
+   * append-only invariant, one step wider -- and still a carve-out rather than a
+   * general "rewrite any row" API, so scrollback stays immutable everywhere else.
+   *
+   * Rows are rebuilt wholesale on each `set` rather than diffed. A widget frame is
+   * a few dozen rows, replaceChildren on a detached-then-attached subtree is one
+   * layout pass, and a diffing renderer here would be a virtual DOM -- which is a
+   * lot of machinery to save a few hundred microseconds nobody can perceive.
+   *
+   * @returns {TransientBlock}
+   */
+  beginTransientBlock() {
+    // Commit anything pending first, so the block lands after it rather than
+    // before -- otherwise the widget appears above the line that launched it.
+    this.flush();
+    const host = document.createElement("div");
+    this.#output.appendChild(host);
+
+    let live = true;
+    return {
+      set: (lines) => {
+        if (!live) return;
+        // Read the pin state before mutating, exactly as #commit does: a visitor who
+        // has scrolled up to read something must not be yanked to the bottom by a
+        // repaint they did not cause.
+        const v = this.#viewport;
+        const wasPinned = v.scrollHeight - v.scrollTop - v.clientHeight < 4;
+        host.replaceChildren(...lines.map(renderRow));
+        if (wasPinned) v.scrollTop = v.scrollHeight;
+      },
+      commit: () => {
+        live = false;
+      },
+      discard: () => {
+        if (!live) return;
+        host.remove();
         live = false;
       },
     };

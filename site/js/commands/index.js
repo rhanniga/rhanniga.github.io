@@ -11,6 +11,7 @@ import { Registry } from "../shell/registry.js";
 import { helpCmd } from "./help.js";
 import { resumeCommands } from "./resume-cmds.js";
 import { askCmd } from "./ask.js";
+import { rentCmd } from "./rent.js";
 import { builtinCommands } from "./builtins.js";
 import { fileCommands } from "./files.js";
 import { themeCommands } from "./theme-cmds.js";
@@ -24,6 +25,7 @@ export function buildRegistry() {
     // The resume is the product, so it leads.
     ...resumeCommands,
     askCmd,
+    rentCmd,
     helpCmd,
     ...builtinCommands,
     ...fileCommands,
